@@ -1,49 +1,32 @@
-# AGENTS.md — Read before modifying this branch
+# AI coding instructions — Tarun branch
 
-You are developing **Draw Together**, a mobile-first collaborative drawing game for a Pratt studio project. Branch owner: **Tarun**. The audience is ages **14–18**, and the app should feel polished and age-appropriate, not childish.
+**Read this file and README.md before making changes.**
 
-## Product idea (keep this intact)
+## Project status
 
-- A small private friend group plays together.
-- One round has one theme (e.g. "A City on Mars"), and *each participant gets a different assigned piece* (sky, buildings, people, vehicles), not the identical prompt.
-- Players draw their own pieces separately on a mobile canvas. Do not reveal other pieces while the round is ongoing.
-- After the group submits, combine the drawings into **one coherent group picture** and show a collective reveal.
-- Sharing outside the app is **optional**, with group control; private drawings should not be posted automatically.
+This is a **shared, mobile-first studio project in the ideation stage**. The team has **not decided on a game, product concept, user flow, features, interactions, visual direction, or final name**. The starter page is intentionally blank. Do not treat previous examples, prompts, or placeholder copy as product requirements.
 
-## Suggested user flow
+## How to work
 
-Home / my groups → Create or join group → Invite via private code/link → Start round → Individual role/prompt → Draw on mobile canvas → Submit / waiting room → Compose & reveal a single artwork → Download or share (with consent).
+1. First confirm the current Git branch is `Tarun`. Work **only** on this branch.
+2. Read the user's latest request and implement **only what they ask for**. Do not invent a game flow or additional features.
+3. If the direction is exploratory, build the smallest testable prototype using local state, mock data, and clear placeholders; explicitly label assumptions.
+4. Keep working code intact unless the request requires changing it. Prefer small reusable React components and mobile-friendly CSS.
+5. Prioritize phone-sized layouts, touch-friendly controls, accessible labels, contrast, and clear state changes. Avoid unnecessary dependencies.
+6. Do not add accounts, analytics, databases, APIs, hidden data collection, paid services, or social sharing unless the team specifically approves them.
+7. Run `npm run build` before claiming implementation is complete. If you cannot run it, say so.
+8. Commit changes with a clear message and **push to `Tarun`**, never directly to `main`. If the user has not asked you to push, present the proposed change and follow their instructions.
+9. Report what actually changed, what is still a placeholder, and where it was deployed. Never invent success or URLs.
+10. When the team approves a change, open a pull request from `Tarun` to `main`. Request reviews from both other teammates; don't merge without approval.
 
-## Build order
+## Files
 
-1. Build one clickable end-to-end local prototype with placeholder data, no auth required.
-2. Implement group creation / join and state for multiple fictional participants.
-3. Implement unique per-player prompts from a shared theme.
-4. Implement touch-friendly canvas, undo/redo, eraser, clear, brush colors, submission.
-5. Assemble drawings into a single composed image; define layout before implementation (tiles or positioned layers).
-6. Add reveal animation and export PNG; consider native sharing with a download fallback.
-7. Add backend/realtime only after reviewing the architecture with all 3 teammates.
+- `src/App.jsx`: current blank starter screen, where you can begin experimenting.
+- `src/styles.css`: styling and responsiveness.
+- `src/main.jsx`: React entry point.
+- `index.html`: page metadata.
+- `README.md`: local setup and GitHub workflow.
 
-## Engineering guardrails
+## AI prompt to start an implementation task
 
-- Existing stack: **React + Vite**, JavaScript/JSX, mobile-first CSS. Keep the app easy to run with `npm install && npm run dev`.
-- Keep screens/components small; prefer reusable UI elements rather than a giant App file.
-- Prefer semantic controls, accessible labels, keyboard operability, visible focus, sufficient contrast, and reduced-motion support.
-- Touch interactions must work on a phone. Do not design a desktop-only game.
-- Treat group codes as private, not secure authentication; avoid collecting unnecessary teen personal data.
-- Do not add AI-generated illustrations, accounts, payments, public social feeds, or notification systems without a deliberate team decision.
-- Do not add external APIs, database keys, or secrets to the repo.
-- Run `npm run build` before proposing a merge. Clearly distinguish implemented features from placeholders.
-
-## Team & Git rules
-
-- Only commit to **Tarun** when working on this branch; never push directly to `main`.
-- Your branch can be pushed to GitHub for preview builds without approval.
-- Open a pull request into `main` when ready for team review, and get approvals from **both** other teammates.
-- Don't force-push or overwrite other people's branches.
-- The three working branches can diverge for ideation, but integrate only reviewed features.
-- If an LLM makes an architectural change, document why in the PR, including screenshots and mobile testing.
-
-## First task for an AI coding agent
-
-"Read AGENTS.md and README.md. Work only on the current branch. Replace the starter screen with a mobile-first Create/Join Group flow using local state and mock data. Keep the other stages as clearly labeled placeholders. Verify npm run build, then summarize files changed and test steps. Do not push to main."
+"Read AGENTS.md and README.md in this repository first. Confirm you're on the Tarun branch. We are still ideating, so don't assume a game, feature set, or user flow. Implement only the idea I describe next, with a mobile-first working prototype and minimal changes. Check the build, then commit and push to the Tarun branch only. Never push or merge to main."
