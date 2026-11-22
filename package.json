@@ -1,6 +1,6 @@
 {
-  "name": "formal-operational-studio",
-  "version": "0.1.0",
+  "name": "formal-operational-doodl",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "lucide-react": "0.468.0"
   },
   "devDependencies": {
     "vite": "7.2.2"

@@ -1,43 +1,44 @@
-# Formal Operational — Tarun's workspace
+# Doodl — daily collaborative sketching prototype
 
-A **blank mobile-first React/Vite starter** for our three-person studio team's ideation and implementation experiments.
+**Branch:** Tarun  
+**Stack:** React + Vite + lucide-react  
+**Vercel:** https://formalop-git-tarun-mail2tarunv-cpus-projects.vercel.app
 
-**We have not chosen a game, product direction, or user flow yet.** This starter does not implement any game mechanics.
+A high-fidelity mobile-first prototype for our Pratt studio project for ages 14–18. The group has selected a concept: friends get a shared daily theme, each member draws one assigned part, and the group interacts through chats, comments, voting, leaderboards and a next-day artwork reveal.
 
-## Open this branch locally
+## Run locally
 
-```bash
-git clone https://github.com/mail2tarunv-cpu/Formal-Operational-.git
-cd Formal-Operational-
-git switch Tarun
-npm install
-npm run dev
-```
+    git clone https://github.com/mail2tarunv-cpu/Formal-Operational-.git
+    cd Formal-Operational-
+    git switch Tarun
+    npm install
+    npm run dev
 
-Check a production build:
+Run \`npm run build\` to check the production bundle.
 
-```bash
-npm run build
-```
+## Screens & interactions
 
-## Where to build
+- **Home:** premium dark creative feed; daily theme, group members, private part assignment, progression.
+- **Circles:** create a private group or one-on-one, select sample friends, generate a shareable invite code, switch groups.
+- **Drawing studio:** pointer/touch canvas, pen, highlighter, eraser, seven colors, brush size, undo, redo, clear, prompt reminder, pause/resume countdown, submit and keep local draft.
+- **Gallery:** view group submissions, comments on each drawing, and votes during 7 PM–7 AM.
+- **Leaderboard:** ranked members and illustration points.
+- **Chat:** group messaging inside the app.
+- **Reveal:** a composed 1080×1080 picture with export and native share/download fallback.
+- **Notifications:** optional browser-permission prompt, foreground-only alerts at the 7 AM / 7 PM boundaries.
+- **Prototype Mode:** lets reviewers preview Draw/Vote/Reveal screens without waiting for the real-time schedule.
 
-- `src/App.jsx`: edit or replace the blank starter page.
-- `src/styles.css`: styles for the starter and your experiments.
-- `AGENTS.md`: instructions to give an AI coding assistant; read before coding.
+## Important: this is a single-browser prototype
 
-## Team GitHub workflow
+Data is saved in **localStorage/sessionStorage on the current device**. The preloaded friends, drawings, points and messages are sample data. **Real-time multi-user features do not work across browsers**, and invite codes do not provision remote users. That requires authentication, a shared database, role-specific membership, server-validated votes, message sync, privacy permissions and storage.
 
-- Each teammate works on **their own branch**: `Tarun`, `Madison`, `Esha`.
-- Push your progress to your own branch as often as needed. This automatically updates that branch's Vercel preview.
-- `main` is the team-approved version. **Do not push directly to main**.
-- When something is ready for the team, open a pull request (PR) from your branch into `main`.
-- The other **two** teammates review and approve before merging. This is the team rule; GitHub enforcement is a separate setting.
-- Before requesting reviews, check the feature on your own preview link and run `npm run build`.
-- If everyone experiments separately, compare and decide which approach to bring into `main`.
+The final composition is a **client-side illustration/layout preview, not AI-generated stitching**. Connecting an image generation service is a separate task and must require approval for provider credentials/costs. Never describe these placeholder features as live.
 
-## Example starting request to an AI tool
+Daily windows are interpreted in the user's **browser-local time zone**. Actual push notifications and reliable 7 AM background jobs require a push service + scheduler. Browser alerts here only work while the page is open.
 
-"Read AGENTS.md and README.md. Work only on the Tarun branch. We have not settled on a game idea yet. Implement the idea I give you next, test the build, and push the changes to this same branch. Do not push to main."
+## Team workflow
 
-**Current status:** blank UI starter. No game screens, group flow, prompts, drawing mechanics, or sharing are implemented.
+- Push work only to \`Tarun\`.
+- Do not modify \`main\`, \`Madison\`, or \`Esha\`.
+- Open a Pull Request and ask both other teammates to review before merging.
+- Read \`AGENTS.md\` before continuing with an AI coding agent.

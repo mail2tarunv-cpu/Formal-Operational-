@@ -1,32 +1,39 @@
-# AI coding instructions — Tarun branch
+# AGENTS.md — Tarun's implementation branch
 
-**Read this file and README.md before making changes.**
+This is the **Tarun** branch of a three-person Pratt studio project. Do not edit \`main\`, \`Madison\`, or \`Esha\`. Never merge code without both other teammates' approval.
 
-## Project status
+## Current approved concept
 
-This is a **shared, mobile-first studio project in the ideation stage**. The team has **not decided on a game, product concept, user flow, features, interactions, visual direction, or final name**. The starter page is intentionally blank. Do not treat previous examples, prompts, or placeholder copy as product requirements.
+A mobile-first daily creative game for teens 14–18. Users:
+1. Create a private group or one-on-one, invite via code rather than public name search.
+2. Get a daily challenge notification at 7 AM; draw from 7 AM to 7 PM, with a shared theme and a distinct assigned sub-prompt for each participant.
+3. Have a 5–10 minute drawing session that pauses when leaving. Pen, marker, eraser, undo/redo, prompt reminder.
+4. Chat with group members, view submitted drawings, and comment directly on a sketch.
+5. Vote on other submissions from 7 PM to 7 AM. Reveal points and leaderboard standings at 7 AM.
+6. At the 7 AM reveal, combine their sketches into one group picture and optionally share on social platforms.
 
-## How to work
+## Current implementation status (DO NOT OVERCLAIM)
 
-1. First confirm the current Git branch is `Tarun`. Work **only** on this branch.
-2. Read the user's latest request and implement **only what they ask for**. Do not invent a game flow or additional features.
-3. If the direction is exploratory, build the smallest testable prototype using local state, mock data, and clear placeholders; explicitly label assumptions.
-4. Keep working code intact unless the request requires changing it. Prefer small reusable React components and mobile-friendly CSS.
-5. Prioritize phone-sized layouts, touch-friendly controls, accessible labels, contrast, and clear state changes. Avoid unnecessary dependencies.
-6. Do not add accounts, analytics, databases, APIs, hidden data collection, paid services, or social sharing unless the team specifically approves them.
-7. Run `npm run build` before claiming implementation is complete. If you cannot run it, say so.
-8. Commit changes with a clear message and **push to `Tarun`**, never directly to `main`. If the user has not asked you to push, present the proposed change and follow their instructions.
-9. Report what actually changed, what is still a placeholder, and where it was deployed. Never invent success or URLs.
-10. When the team approves a change, open a pull request from `Tarun` to `main`. Request reviews from both other teammates; don't merge without approval.
+The frontend is an interactive **prototype with browser-local persistence** and sample friends, messages and sketches. No remote database, real shared accounts, server-backed invite codes, push notification service, or real AI image stitching has been connected. The final graphic is a fallback composition generated on the client, not an AI output. Demo Mode allows reviewers to inspect time-gated stages.
 
-## Files
+## Engineering rules
 
-- `src/App.jsx`: current blank starter screen, where you can begin experimenting.
-- `src/styles.css`: styling and responsiveness.
-- `src/main.jsx`: React entry point.
-- `index.html`: page metadata.
-- `README.md`: local setup and GitHub workflow.
+- Tech: React + Vite, JSX, CSS, lucide-react.
+- Main app: \`src/App.jsx\`; responsive design: \`src/styles.css\`.
+- Make small, tested changes. Preserve flows unless requested otherwise.
+- Mobile touch interactions and accessibility are critical; test narrow widths.
+- Keep 7 AM / 7 PM scheduling, unique per-person prompt assignment, private-only circles and optional sharing consistent.
+- Do not create fake server responses, fake persistent AI composition, or claim that multi-user sharing is active.
+- Do not introduce analytics, open user directories, public feeds, backend providers, paid image generation APIs, or leak API keys.
+- To add a real backend, design RLS-protected group memberships, teen privacy safeguards, server-controlled time windows and votes, real-time chat, drawing object storage and scheduled jobs. Ask before connecting to an unrelated existing Supabase project.
+- Run \`npm run build\`, inspect usability and document limitations.
+- Commit and push only to \`Tarun\`; verify the Vercel preview deployment after pushing.
 
-## AI prompt to start an implementation task
+## Suggested next steps
 
-"Read AGENTS.md and README.md in this repository first. Confirm you're on the Tarun branch. We are still ideating, so don't assume a game, feature set, or user flow. Implement only the idea I describe next, with a mobile-first working prototype and minimal changes. Check the build, then commit and push to the Tarun branch only. Never push or merge to main."
+1. Test and refine the mobile UI with 14–18-year-old participants.
+2. Review group consent, privacy, moderation, vote manipulation and time-zone handling.
+3. Decide on shared backend/auth and implement real group participation.
+4. Integrate AI stitching only after defining prompts, image permissions and costs.
+
+The user has asked for a premium, polished visual feel borrowing cinematic dark hierarchy (Netflix) and intuitive social mechanics (Instagram), but avoid trademarked assets and avoid cloning those brands' interfaces literally.
