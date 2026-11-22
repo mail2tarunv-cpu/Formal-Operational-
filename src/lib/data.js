@@ -26,8 +26,9 @@ export async function readCircles(userId) {
   if(!memberships.length)return [];
   return check(await client().from('circles').select('*').in('id',memberships.map(m=>m.circle_id)).order('created_at',{ascending:false}));
 }
-export async function createCircle(name,kind,timezone) {
-  return check(await client().rpc('create_circle',{p_name:name,p_kind:kind,p_timezone:timezone}));
+export async function createCircle(name,playerCount,timezone) {
+  if (![1,2,3].includes(playerCount)) throw new Error('Choose 1, 2, or 3 players.');
+  return check(await client().rpc('create_circle',{p_name:name,p_player_count:playerCount,p_timezone:timezone}));
 }
 export async function joinCircle(code) {
   return check(await client().rpc('join_circle',{p_code:code}));

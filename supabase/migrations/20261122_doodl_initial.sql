@@ -13,6 +13,7 @@ create table public.circles (
  name text not null check(char_length(name) between 2 and 48),
  invite_code text not null unique default upper(encode(gen_random_bytes(8),'hex')),
  kind text not null check(kind in ('group','duo')),
+ player_count integer not null default 3 check(player_count between 1 and 3),
  timezone text not null default 'America/New_York',
  owner_id uuid not null references auth.users(id),
  created_at timestamptz not null default now()
@@ -148,18 +149,18 @@ end;
 $$;
 
 -- Only the owner can create a group. Membership is created atomically.
-create function public.create_circle(p_name text,p_kind text,p_timezone text)
+create function public.create_circle(p_name text,p_player_count integer,p_timezone text)
 returns uuid language plpgsql volatile security definer
 set search_path = '' as $$
 declare cid uuid;
 begin
  if auth.uid() is null then raise exception 'Sign in first'; end if;
  if char_length(btrim(p_name)) not between 2 and 48 then raise exception 'Name must be 2–48 characters'; end if;
- if p_kind not in ('group','duo') then raise exception 'Invalid circle type'; end if;
+ if p_player_count is null or p_player_count not in (1,2,3) then raise exception 'Choose 1, 2, or 3 players'; end if;
  if not exists(select 1 from pg_catalog.pg_timezone_names where name=p_timezone) then
    raise exception 'Unknown timezone'; end if;
- insert into public.circles(name,kind,timezone,owner_id)
- values(btrim(p_name),p_kind,p_timezone,auth.uid()) returning id into cid;
+ insert into public.circles(name,kind,player_count,timezone,owner_id)
+ values(btrim(p_name),case when p_player_count=2 then 'duo' else 'group' end,p_player_count,p_timezone,auth.uid()) returning id into cid;
  insert into public.circle_members(circle_id,user_id) values(cid,auth.uid());
  return cid;
 end;
@@ -167,15 +168,15 @@ $$;
 create function public.join_circle(p_code text)
 returns uuid language plpgsql volatile security definer
 set search_path = '' as $$
-declare cid uuid; k text; member_count integer;
+declare cid uuid; capacity integer; member_count integer;
 begin
  if auth.uid() is null then raise exception 'Sign in first'; end if;
- select c.id,c.kind into cid,k from public.circles c
+ select c.id,c.player_count into cid,capacity from public.circles c
  where c.invite_code=upper(btrim(p_code)) for update;
  if cid is null then raise exception 'Invalid invite code'; end if;
  if public.is_circle_member(cid) then return cid; end if;
  select count(*) into member_count from public.circle_members where circle_id=cid;
- if (k='duo' and member_count>=2) or member_count>=8 then
+ if member_count>=capacity then
    raise exception 'This circle is full'; end if;
  insert into public.circle_members(circle_id,user_id) values(cid,auth.uid());
  return cid;
@@ -349,7 +350,7 @@ revoke execute on function public.shares_circle(uuid) from public,anon;
 revoke execute on function public.round_phase(uuid) from public,anon;
 revoke execute on function public.can_submit(uuid,text) from public,anon;
 revoke execute on function public.can_store_art(text) from public,anon;
-revoke execute on function public.create_circle(text,text,text) from public,anon;
+revoke execute on function public.create_circle(text,integer,text) from public,anon;
 revoke execute on function public.join_circle(text) from public,anon;
 revoke execute on function public.ensure_daily_round(uuid) from public,anon;
 revoke execute on function public.cast_vote(uuid,uuid) from public,anon;
@@ -359,7 +360,7 @@ revoke execute on function public.delete_circle(uuid) from public,anon;
 revoke execute on function public.handle_new_user() from public,anon,authenticated;
 grant execute on function public.is_circle_member(uuid), public.shares_circle(uuid),
  public.round_phase(uuid),public.can_submit(uuid,text),public.can_store_art(text),
- public.create_circle(text,text,text), public.join_circle(text),public.ensure_daily_round(uuid),
+ public.create_circle(text,integer,text), public.join_circle(text),public.ensure_daily_round(uuid),
  public.cast_vote(uuid,uuid),public.get_leaderboard(uuid),public.leave_circle(uuid),
  public.delete_circle(uuid) to authenticated;
 
