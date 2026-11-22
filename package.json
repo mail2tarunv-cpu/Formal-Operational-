@@ -1,6 +1,6 @@
 {
-  "name": "formal-operational-doodl",
-  "version": "0.2.0",
+  "name": "doodl",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,9 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.119.2",
+    "lucide-react": "0.468.0",
     "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "lucide-react": "0.468.0"
+    "react-dom": "19.2.0"
   },
   "devDependencies": {
     "vite": "7.2.2"

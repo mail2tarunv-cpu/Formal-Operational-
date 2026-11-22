@@ -1,540 +1,344 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Home, UsersRound, Images, Trophy, Settings2, Bell, Plus, ArrowRight, ArrowLeft,
-  Clock3, Pencil, Eraser, Undo2, Redo2, Trash2, Check, Copy, Share2, Download,
-  Heart, MessageCircle, Send, X, Sparkles, Play, Pause, ChevronRight, LockKeyhole,
-  UserRoundPlus, Eye, Star, CalendarDays, Info, ShieldCheck, RotateCcw, CheckCircle2, SlidersHorizontal, UserRound,
-  Brush, Highlighter, Volume2, MoreHorizontal, Palette, ExternalLink, Image as ImageIcon
+import React, {useCallback,useEffect,useMemo,useState} from 'react';
+import { ArrowLeft, ArrowRight, Bell, Check, CheckCircle2, ChevronDown, ChevronRight, CircleHelp,
+ Copy, Download, Ellipsis, Eye, Heart, Home, Image as ImageIcon, Images, Info, LockKeyhole,
+ LogOut, MessageCircle, Pencil, Plus, Send, Settings, Share2, Shield, SlidersHorizontal,
+ Sparkles, Trash2, Trophy, UploadCloud, UserRound, UserRoundPlus, UsersRound, X, Flag, Ban,
+ Clock3, CalendarDays, RotateCw, Play, Palette, CheckCheck
 } from 'lucide-react';
+import Canvas from './components/Canvas.jsx';
+import {supabase,backendConfigured,groupDate,THEMES,explainError,check} from './lib/client.js';
+import {
+ readProfile,updateProfile,allProfiles,uploadAvatar,readCircles,createCircle,joinCircle,leaveCircle,
+ getMembers,loadRound,getPreviousRound,submitDrawing,castVote,approveSharing,leaderboard,listMessages,sendMessage,
+ listComments,postComment,reportContent,blockUser,watchCircle
+} from './lib/data.js';
 
-const PEOPLE = [
-  { id: 'you', name: 'You', initials: 'YO', color: '#d5ff78', handle: '@you' },
-  { id: 'maya', name: 'Maya', initials: 'MA', color: '#ff9eae', handle: '@mayamakes' },
-  { id: 'jules', name: 'Jules', initials: 'JU', color: '#aaa5ff', handle: '@julesdraws' },
-  { id: 'noah', name: 'Noah', initials: 'NO', color: '#a0dfff', handle: '@noah' },
-  { id: 'ava', name: 'Ava', initials: 'AV', color: '#ffcf92', handle: '@avasketches' }
-];
-const THEMES = [
-  {
-    title: 'A CITY ON MARS',
-    subtitle: 'A whole new world. Drawn by your crew.',
-    label: 'WORLD BUILDING',
-    prompts: [
-      { label: 'The skyline', detail: 'Imagine the buildings that could exist on Mars. Make the architecture your own.' },
-      { label: 'The Martian sky', detail: 'Draw the sky, moons, stars, or strange weather above this new city.' },
-      { label: 'The locals', detail: 'Draw the people, aliens, or creatures who call this city home.' },
-      { label: 'Getting around', detail: 'Invent a vehicle that could take people across the planet.' },
-      { label: 'The landscape', detail: 'Draw the mountains, craters, and unusual plants surrounding the city.' }
-    ]
-  },
-  {
-    title: 'UNDERWATER FUTURE',
-    subtitle: 'An entire civilization below the surface.',
-    label: 'IMAGINATION',
-    prompts: [
-      { label: 'Ocean architecture', detail: 'Invent buildings that belong deep underwater.' },
-      { label: 'The sea above', detail: 'Draw what the water and light look like from below.' },
-      { label: 'Deep sea residents', detail: 'Imagine the creatures living in this underwater city.' },
-      { label: 'Water transport', detail: 'Draw an unexpected way of getting around underwater.' },
-      { label: 'The ocean floor', detail: 'Imagine the terrain, coral, and hidden spaces around the city.' }
-    ]
-  },
-  {
-    title: 'THE LAST ARCADE',
-    subtitle: 'A place no one wants to leave.',
-    label: 'CREATE A PLACE',
-    prompts: [
-      { label: 'The arcade machines', detail: 'Draw the games and machines you would find inside.' },
-      { label: 'The atmosphere', detail: 'Show the lighting, posters, and signs around this arcade.' },
-      { label: 'The characters', detail: 'Draw the people or creatures who spend time here.' },
-      { label: 'The odd details', detail: 'Add something weird or surprising to this arcade.' },
-      { label: 'Outside the arcade', detail: 'Draw the street and neighborhood around this place.' }
-    ]
-  }
-];
-const START_GROUP = {
-  id: 'orbit', name: 'The Orbit Club', code: 'ORBIT7', members: ['you', 'maya', 'jules', 'noah'],
-  type: 'group', accent: '#cfbbff', created: '2026-11-22', demo: true
-};
-const INITIAL = {
-  groups: [START_GROUP], activeGroup: 'orbit', profile: { name: 'You', notifications: false },
-  submissions: {}, votes: {}, comments: {}, seenNotifications: false,
-  chats: {
-    orbit: [
-      { id: 's1', by: 'maya', text: 'Our sketches are going to look so chaotic 😭', at: '10:24' },
-      { id: 's2', by: 'jules', text: 'That is literally the point', at: '10:26' },
-      { id: 's3', by: 'noah', text: 'Calling dibs on drawing the aliens', at: '10:27' }
-    ]
-  }
-};
-const KEY = 'formal-operational-doodle-v1';
-function getSaved() {
-  try {
-    const stored = JSON.parse(localStorage.getItem(KEY));
-    if (stored && Array.isArray(stored.groups)) return { ...INITIAL, ...stored };
-  } catch (_) {}
-  return INITIAL;
+const IconBtn=({icon:Icon,label,onClick,active=false})=><button type="button" className={'icon-btn '+(active?'active':'')} aria-label={label} title={label} onClick={onClick}><Icon size={21}/></button>;
+const Avatar=({profile,size=42})=><span className="real-avatar" style={{width:size,height:size}} title={profile?.display_name||'Artist'}>{profile?.avatar_url?<img src={profile.avatar_url} alt={profile.display_name+' photo'}/>:<UserRound size={Math.floor(size*.47)} strokeWidth={1.65}/>}</span>;
+const GroupAvatars=({members,size=31})=><div className="avatar-stack">{members.slice(0,5).map(m=><Avatar key={m.user_id} profile={m.profile} size={size}/>)}</div>;
+const Btn=({children,onClick,icon:Icon,secondary=false,disabled=false,className='',type='button'})=><button type={type} className={'button '+(secondary?'button-alt':'')+' '+className} onClick={onClick} disabled={disabled}>{children}{Icon&&<Icon size={17}/>}</button>;
+function Modal({title,subtitle,onClose,children}){
+ return <div className="sheet-overlay" onPointerDown={e=>{if(e.target===e.currentTarget)onClose()}}>
+  <section className="sheet" role="dialog" aria-modal="true" aria-label={title}>
+   <header className="sheet-head"><div><h2>{title}</h2>{subtitle&&<p>{subtitle}</p>}</div><IconBtn icon={X} label="Close" onClick={onClose}/></header>
+   <div className="sheet-inner">{children}</div>
+  </section>
+ </div>;
 }
-function formatTime(date) {
-  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+function Waiting({message='Loading your circle…'}){return <div className="center-message"><div className="spinner"/><p>{message}</p></div>}
+function SetupRequired(){return <div className="setup-page">
+ <div className="setup-mark"><Pencil size={30}/></div>
+ <div className="eyebrow">DOODL / PROJECT SETUP</div>
+ <h1>The app is ready for its database.</h1>
+ <p>Accounts, private circles, messages, drawings and votes need one dedicated Supabase project. The Vercel deployment does not have a database attached yet.</p>
+ <div className="setup-checks">
+  <div><Check size={18}/> Full React application</div><div><Check size={18}/> Private-group schema and access rules prepared</div>
+  <div><Check size={18}/> Auth, real uploads, messaging and voting code</div>
+  <div className="pending"><Clock3 size={18}/> Create/connect a dedicated Supabase project</div>
+  <div className="pending"><Clock3 size={18}/> Apply migration and set Vercel environment variables</div>
+ </div>
+ <p className="setup-note">Required environment variables: <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>. No user data is collected on this setup screen.</p>
+ </div>}
+function Auth({onError}){
+ const[email,setEmail]=useState(''),[token,setToken]=useState(''),[sent,setSent]=useState(false),[busy,setBusy]=useState(false);
+ const send=async e=>{e.preventDefault();setBusy(true);
+  try{check(await supabase.auth.signInWithOtp({email:email.trim(),options:{emailRedirectTo:window.location.origin,shouldCreateUser:true}}));setSent(true)}
+  catch(e){onError(explainError(e))}finally{setBusy(false)}
+ };
+ const verify=async e=>{e.preventDefault();setBusy(true);
+  try{check(await supabase.auth.verifyOtp({email:email.trim(),token:token.trim(),type:'email'}))}
+  catch(e){onError(explainError(e))}finally{setBusy(false)}
+ };
+ return <main className="auth-shell">
+  <div className="auth-top"><span className="wordmark">doodl<span>.</span></span><span className="auth-private"><LockKeyhole size={15}/> Private by default</span></div>
+  <div className="auth-art" aria-hidden="true"><div className="auth-pattern"><Pencil size={51} strokeWidth={1.2}/></div></div>
+  <div className="auth-content"><span className="eyebrow">GOOD IDEAS ARE BETTER TOGETHER</span><h1>Draw with<br/>your people.</h1><p>One theme. Different ideas. One circle of friends. A new doodle every day.</p>
+   {sent?<form onSubmit={verify} className="auth-form"><label htmlFor="otp">Enter the code from your email</label><input id="otp" inputMode="numeric" autoComplete="one-time-code" placeholder="Email code" value={token} onChange={e=>setToken(e.target.value)} minLength={6} maxLength={12} required/><Btn type="submit" disabled={busy} icon={ArrowRight}>{busy?'Checking…':'Verify code'}</Btn><button type="button" className="text-button" onClick={()=>setSent(false)}>Use another email</button></form>
+   :<form className="auth-form" onSubmit={send}><label htmlFor="email">Your email</label><input id="email" type="email" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/><Btn type="submit" disabled={busy} icon={ArrowRight}>{busy?'Sending…':'Continue with email'}</Btn></form>}
+   <p className="auth-privacy"><Shield size={15}/> No public profiles or friend search. Join circles with an invite code.</p>
+  </div>
+ </main>;
 }
-function formatDate(date) {
-  return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+function composeArtwork(theme,members,submissions){
+ return new Promise(async(resolve,reject)=>{
+  try{
+   const available=submissions.filter(x=>x.url);
+   if(!available.length)throw new Error('No drawings to export yet.');
+   const canvas=document.createElement('canvas');const c=canvas.getContext('2d');
+   canvas.width=1080;canvas.height=1350;c.fillStyle='#f4f0ea';c.fillRect(0,0,1080,1350);
+   c.fillStyle='#1d1e20';c.font='bold 24px Arial';c.fillText('DOODL / MADE TOGETHER',62,78);
+   c.font='bold 50px Arial';c.fillText(theme.name,62,151);c.fillStyle='#d96f5e';c.fillRect(62,180,956,4);
+   const cols=available.length===1?1:2;const rows=Math.ceil(available.length/cols);
+   const cellW=(956-(cols-1)*14)/cols,cellH=Math.min(460,(995-(rows-1)*14)/rows);
+   for(let i=0;i<available.length;i++){
+    const item=available[i],x=62+(i%cols)*(cellW+14),y=211+Math.floor(i/cols)*(cellH+14);
+    c.fillStyle='#ded8d1';c.fillRect(x,y,cellW,cellH);
+    const res=await fetch(item.url);if(!res.ok)continue;
+    const blob=await res.blob();
+    const img=await createImageBitmap(blob);
+    const scale=Math.min(cellW/img.width,cellH/img.height);const w=img.width*scale,h=img.height*scale;
+    c.drawImage(img,x+(cellW-w)/2,y+(cellH-h)/2,w,h);img.close?.();
+   }
+   c.fillStyle='#242526';c.font='24px Arial';c.fillText('Made by '+members.length+' friends · Doodl',62,1287);
+   canvas.toBlob(b=>b?resolve(b):reject(new Error('Could not export artwork')),'image/png');
+  }catch(e){reject(e)}
+ });
 }
-function getDayKey(date) {
-  const local = new Date(date);
-  if (local.getHours() < 7) local.setDate(local.getDate() - 1);
-  return [local.getFullYear(), String(local.getMonth() + 1).padStart(2, '0'), String(local.getDate()).padStart(2, '0')].join('-');
+function MemberPicker({circle,members,me,onReport,onBlock}){
+ return <div className="member-list">{members.map(member=><div className="member-row" key={member.user_id}>
+  <Avatar profile={member.profile} size={42}/><div className="member-identity"><strong>{member.profile.display_name}{member.user_id===me?' (you)':''}</strong><small>{member.user_id===circle.owner_id?'Circle creator':'Circle member'}</small></div>
+  {member.user_id!==me&&<button className="member-report" onClick={()=>onReport(member.user_id)} aria-label={'Report '+member.profile.display_name}><Flag size={16}/></button>}
+ </div>)}</div>;
 }
-function getTheme(date) {
-  const day = Number(getDayKey(date).replaceAll('-', ''));
-  return THEMES[(day + 2) % THEMES.length];
-}
-function getPerson(id) {
-  return PEOPLE.find((p) => p.id === id) || { id, name: id, initials: id.slice(0, 2).toUpperCase(), color: '#d5ff78' };
-}
-function getRealPhase(date) {
-  const hour = date.getHours();
-  return hour >= 7 && hour < 19 ? 'drawing' : 'voting';
-}
-function nextTime(date, hours) {
-  const d = new Date(date);
-  d.setHours(hours, 0, 0, 0);
-  if (d <= date) d.setDate(d.getDate() + 1);
-  const ms = d.getTime() - date.getTime();
-  const hh = Math.floor(ms / 3600000);
-  const mm = Math.floor((ms % 3600000) / 60000);
-  return (hh ? hh + 'h ' : '') + mm + 'm';
-}
-function freshCode() {
-  const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const rand = new Uint32Array(6);
-  crypto.getRandomValues(rand);
-  return Array.from(rand, (n) => letters[n % letters.length]).join('');
-}
-const AVATAR_PHOTOS = {
- you:'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&crop=faces&w=200&h=200&q=82',
- maya:'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&crop=faces&w=200&h=200&q=82',
- jules:'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&crop=faces&w=200&h=200&q=82',
- noah:'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&crop=faces&w=200&h=200&q=82',
- ava:'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&crop=faces&w=200&h=200&q=82'
-};
-const ART_PHOTOS = {
- city:'https://images.unsplash.com/photo-1541961017774-22349e4a1262?auto=format&fit=crop&w=1000&q=85',
- building:'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=800&q=83',
- sky:'https://images.unsplash.com/photo-1758521232721-da2be69f0b64?auto=format&fit=crop&w=800&q=83',
- locals:'https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&w=800&q=83',
- transport:'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=800&q=83'
-};
-function Avatar({id,size=36,className=''}) {
- const p=getPerson(id);
- return <span title={p.name+' · sample photo'} className={'avatar photo-avatar '+className} style={{'--avatar':p.color,width:size,height:size}}>
-   <UserRound className="photo-fallback" aria-hidden="true" size={Math.floor(size*.46)} strokeWidth={1.8}/>
-   <img src={AVATAR_PHOTOS[id]||AVATAR_PHOTOS.you} alt={p.name+' profile'} decoding="async" loading="lazy" onError={e=>{e.currentTarget.style.display='none'}}/>
- </span>;
-}
-function Stack({ids,size=32}) {
- return <span className="avatar-stack">{ids.map(id=><Avatar key={id} id={id} size={size}/>)}</span>;
-}
-function Illustration({variant='city',className='',size='large'}) {
- return <img className={'illustration photo-art illustration-'+size+' '+className} src={ART_PHOTOS[variant]||ART_PHOTOS.city} alt="Example artwork photograph" loading={size==='large'?'eager':'lazy'} decoding="async" onError={e=>{e.currentTarget.style.opacity='.06'}}/>;
-}
-function Modal({ title, subtitle, onClose, children, large = false }) {
-  return <div className="modal-backdrop" onPointerDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-    <section className={'modal ' + (large ? 'modal-wide' : '')} role="dialog" aria-modal="true" aria-label={title}>
-      <div className="modal-head"><div><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div><button className="icon-button" aria-label="Close" onClick={onClose}><X size={21}/></button></div>
-      {children}
-    </section>
-  </div>;
-}
-function Button({ children, onClick, variant = 'primary', icon: Icon = null, className = '', disabled = false, type = 'button' }) {
-  return <button type={type} disabled={disabled} onClick={onClick} className={'btn btn-' + variant + ' ' + className}>{children}{Icon && <Icon size={17}/>}</button>;
-}
-const palette = ['#2a273a', '#f4518a', '#8d68ff', '#84d5ff', '#bcf17a', '#f5b45d', '#fffaf2'];
-function DrawingStudio({ group, prompt, initialSeconds, paused, onPause, onTime, onExit, onSubmit, toast }) {
-  const canvas = useRef(null);
-  const drawing = useRef(null);
-  const [strokes, setStrokes] = useState(() => {
-    try { return JSON.parse(sessionStorage.getItem('doodle-draft-' + group.id)) || []; } catch (_) { return []; }
-  });
-  const [undone, setUndone] = useState([]);
-  const [tool, setTool] = useState('pen');
-  const [color, setColor] = useState('#2a273a');
-  const [showPrompt, setShowPrompt] = useState(false);
-  const [size, setSize] = useState(6);
-  const [duration, setDuration] = useState(7);
-  const hasDrawing = strokes.length > 0;
-  const coordinates = (e) => {
-    const box = canvas.current.getBoundingClientRect();
-    return { x: Math.max(0, Math.min(900, (e.clientX - box.left) * 900 / box.width)), y: Math.max(0, Math.min(650, (e.clientY - box.top) * 650 / box.height)) };
-  };
-  const render = () => {
-    const node = canvas.current;
-    if (!node) return;
-    const ctx = node.getContext('2d');
-    ctx.clearRect(0, 0, 900, 650);
-    const paint = (stroke) => {
-      if (!stroke || !stroke.points || !stroke.points.length) return;
-      ctx.save();
-      ctx.globalCompositeOperation = stroke.tool === 'eraser' ? 'destination-out' : 'source-over';
-      ctx.globalAlpha = stroke.tool === 'marker' ? 0.5 : 1;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.strokeStyle = stroke.color;
-      ctx.fillStyle = stroke.tool === 'eraser' ? '#000' : stroke.color;
-      ctx.lineWidth = stroke.width;
-      const points = stroke.points;
-      if (points.length === 1) {
-        ctx.beginPath();ctx.arc(points[0].x,points[0].y,stroke.width/2,0,Math.PI*2);ctx.fill();
-      } else {
-        ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);
-        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x,points[i].y);
-        ctx.stroke();
-      }
-      ctx.restore();
-    };
-    strokes.forEach(paint);
-    paint(drawing.current);
-  };
-  useEffect(() => { render();sessionStorage.setItem('doodle-draft-' + group.id, JSON.stringify(strokes)); }, [strokes, group.id]);
-  useEffect(() => {
-    const handler = () => { if (document.hidden) onPause(true); };
-    document.addEventListener('visibilitychange', handler);
-    return () => document.removeEventListener('visibilitychange', handler);
-  }, [onPause]);
-  const down = (e) => {
-    if (paused || initialSeconds <= 0) return;
-    e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);
-    drawing.current = { points:[coordinates(e)], color, tool, width: tool === 'marker' ? size * 3 : tool === 'eraser' ? 34 : size };
-    render();
-  };
-  const move = (e) => {
-    if (!drawing.current) return;
-    drawing.current.points.push(coordinates(e));
-    render();
-  };
-  const up = () => {
-    if (!drawing.current) return;
-    const finished = drawing.current;
-    drawing.current = null;
-    setStrokes((s) => [...s, finished]);
-    setUndone([]);
-  };
-  const undo = () => { if (!strokes.length) return;setUndone((u) => [...u, strokes[strokes.length - 1]]);setStrokes((s) => s.slice(0, -1)); };
-  const redo = () => { if (!undone.length) return;setStrokes((s) => [...s, undone[undone.length - 1]]);setUndone((u) => u.slice(0, -1)); };
-  const submit = () => {
-    if (!hasDrawing) return toast('Draw something before submitting.');
-    onPause(true);
-    onSubmit(canvas.current.toDataURL('image/png'));
-    sessionStorage.removeItem('doodle-draft-' + group.id);
-  };
-  const minutes = String(Math.floor(initialSeconds / 60)).padStart(2, '0');
-  const seconds = String(initialSeconds % 60).padStart(2, '0');
-  return <main className="studio">
-    <header className="studio-header">
-      <button className="back-text" onClick={() => { onPause(true);onExit(); }}><ArrowLeft size={19}/> Exit studio</button>
-      <div className="studio-header-title"><span>YOU'RE DRAWING</span><strong>{group.name}</strong></div>
-      <button className="prompt-peek" onClick={() => setShowPrompt((v) => !v)}><Eye size={17}/> View prompt</button>
-    </header>
-    <div className="studio-body">
-      <div className="studio-intro"><span className="tag tag-accent">YOUR SECRET PROMPT</span><h1>{prompt.label}<span className="title-star"><Brush size={22}/></span></h1><p>{prompt.detail}</p></div>
-      <div className="canvas-shell">
-        <div className="canvas-topline"><div className="canvas-meta"><span className="tiny-dot"/><span>Untitled masterpiece</span></div><div className={'timer ' + (initialSeconds < 60 ? 'timer-urgent' : '')}><Clock3 size={17}/>{minutes}:{seconds}<button aria-label={paused ? 'Resume timer' : 'Pause timer'} onClick={() => onPause(!paused)}>{paused ? <Play size={17} fill="currentColor"/> : <Pause size={17} fill="currentColor"/>}</button></div></div>
-        <div className="paper">
-          <div className="paper-grid"/>
-          {!hasDrawing && <div className="canvas-hint">Draw anything.<br/>Seriously, anything.</div>}
-          <canvas ref={canvas} width="900" height="650" aria-label="Draw with touch or mouse" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onLostPointerCapture={up} style={{touchAction:'none'}}/>
-          {paused && <div className="canvas-pause"><Pause size={23}/><strong>Taking five?</strong><span>Your timer is paused.</span><Button onClick={() => onPause(false)} icon={Play}>Keep drawing</Button></div>}
-        </div>
-        <div className="tools-bar">
-          <div className="tool-group">
-            <button title="Pen" className={'tool-btn ' + (tool === 'pen' ? 'selected':'')} onClick={() => setTool('pen')}><Pencil size={19}/></button>
-            <button title="Marker" className={'tool-btn ' + (tool === 'marker' ? 'selected':'')} onClick={() => setTool('marker')}><Highlighter size={19}/></button>
-            <button title="Eraser" className={'tool-btn ' + (tool === 'eraser' ? 'selected':'')} onClick={() => setTool('eraser')}><Eraser size={19}/></button>
-          </div>
-          <span className="tool-separator"/>
-          <div className="color-row">{palette.map((c) => <button key={c} title={'Color ' + c} aria-label={'Choose ' + c} className={'color-button ' + (color === c && tool !== 'eraser' ? 'active':'')} style={{ '--swatch': c }} onClick={() => {setColor(c);if (tool === 'eraser') setTool('pen');}}/>)}</div>
-          <span className="tool-separator"/>
-          <div className="tool-group tools-actions">
-            <button className="tool-btn" title="Undo" disabled={!strokes.length} onClick={undo}><Undo2 size={19}/></button>
-            <button className="tool-btn" title="Redo" disabled={!undone.length} onClick={redo}><Redo2 size={19}/></button>
-            <button className="tool-btn tool-trash" title="Clear canvas" disabled={!strokes.length} onClick={() => {setStrokes([]);setUndone([]);}}><Trash2 size={18}/></button>
-          </div>
-        </div>
+function Doodl() {
+ const[user,setUser]=useState(undefined),[profile,setProfile]=useState(null);
+ const[groups,setGroups]=useState([]),[groupId,setGroupId]=useState('');
+ const[screen,setScreen]=useState('home'),[modal,setModal]=useState('');
+ const[busy,setBusy]=useState(false),[error,setError]=useState(''),[toast,setToast]=useState('');
+ const[members,setMembers]=useState([]),[board,setBoard]=useState(null),[previous,setPrevious]=useState(null);
+ const[chat,setChat]=useState([]),[scores,setScores]=useState([]);
+ const[newCircle,setNewCircle]=useState(''),[kind,setKind]=useState('group'),[joinCode,setJoinCode]=useState('');
+ const[message,setMessage]=useState(''),[comment,setComment]=useState(''),[selectedDrawing,setSelectedDrawing]=useState(null),[comments,setComments]=useState([]);
+ const[displayName,setDisplayName]=useState(''),[now,setNow]=useState(new Date()),[avatarBusy,setAvatarBusy]=useState(false);
+ const[reportTarget,setReportTarget]=useState(null),[reportReason,setReportReason]=useState('');
+ const[loading,setLoading]=useState(false),[profileLoading,setProfileLoading]=useState(false);
+ const group=groups.find(g=>g.id===groupId)||null;
+ const theme=board?THEMES[board.round.theme_index]:THEMES[0];
+ const mine=board?.parts.find(p=>p.user_id===user?.id);
+ const prompt={label:theme.prompt[mine?.prompt_index||0],description:theme.description[mine?.prompt_index||0]};
+ const mySubmission=board?.submissions.find(s=>s.user_id===user?.id);
+ const phase=board?.phase||'drawing';
+ const people=useMemo(()=>Object.fromEntries(members.map(m=>[m.user_id,m.profile])),[members]);
+ const handleError=(e)=>{setError(explainError(e));};
+ const alert=(text)=>setToast(text);
+ useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(''),3400);return()=>clearTimeout(t)},[toast]);
+ useEffect(()=>{if(!supabase)return;
+  supabase.auth.getSession().then(({data,error})=>{if(error)setError(error.message);setUser(data.session?.user||null)}).catch(handleError);
+  const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>setUser(session?.user||null));
+  return()=>subscription.unsubscribe();
+ },[]);
+ useEffect(()=>{const interval=setInterval(()=>setNow(new Date()),30000);return()=>clearInterval(interval)},[]);
+ const refreshCircles=useCallback(async()=>{
+  if(!user)return;
+  const data=await readCircles(user.id);
+  setGroups(data);
+  setGroupId(previousId=>data.some(g=>g.id===previousId)?previousId:(data[0]?.id||''));
+  return data;
+ },[user?.id]);
+ const refreshProfile=useCallback(async()=>{
+  if(!user)return;
+  setProfileLoading(true);
+  try{const p=await readProfile(user.id);let avatar_url='';
+   if(p.avatar_path){const {signedAvatarUrl}=await import('./lib/client.js');avatar_url=await signedAvatarUrl(p.avatar_path).catch(()=>'')}
+   setProfile({...p,avatar_url});setDisplayName(p.display_name)
+  }finally{setProfileLoading(false)}
+ },[user?.id]);
+ useEffect(()=>{if(!user){setGroups([]);setProfile(null);setBoard(null);return}
+  Promise.all([refreshProfile(),refreshCircles()]).catch(handleError);
+ },[user?.id,refreshProfile,refreshCircles]);
+ const refreshGroup=useCallback(async(silent=false)=>{
+  if(!group||!user)return;
+  if(!silent)setLoading(true);
+  try{
+   const [m,b,msg,rank]=await Promise.all([
+     getMembers(group.id),loadRound(group.id,user.id),listMessages(group.id),leaderboard(group.id)
+   ]);
+   const prior=await getPreviousRound(group.id,b.round.day);
+   setMembers(m);setBoard(b);setChat(msg);setScores(rank);setPrevious(prior);
+  }catch(e){handleError(e)}finally{if(!silent)setLoading(false)}
+ },[group?.id,user?.id]);
+ useEffect(()=>{if(!group)return;refreshGroup();const update=()=>refreshGroup(true);
+  const stop=watchCircle(group.id,update);const int=setInterval(update,60000);
+  return()=>{stop();clearInterval(int)};
+ },[group?.id,refreshGroup]);
+ const switchTab=(name)=>{setScreen(name);setModal('');setError('')};
+ const create=async()=>{
+  if(newCircle.trim().length<2)return alert('Give your circle a name.');
+  setBusy(true);try{
+   const id=await createCircle(newCircle.trim(),kind,Intl.DateTimeFormat().resolvedOptions().timeZone||'America/New_York');
+   await refreshCircles();setGroupId(id);setNewCircle('');setModal('');setScreen('home');alert('Circle created. Share the invite code.');
+  }catch(e){handleError(e)}finally{setBusy(false)}
+ };
+ const join=async()=>{
+  setBusy(true);try{const id=await joinCircle(joinCode.trim().toUpperCase());await refreshCircles();setGroupId(id);setJoinCode('');setModal('');setScreen('home');alert('You joined the circle.')}
+  catch(e){handleError(e)}finally{setBusy(false)}
+ };
+ const onSubmit=async blob=>{
+  await submitDrawing(board.round.id,group.id,user.id,blob,mySubmission?.storage_path);
+  await refreshGroup(true);setScreen('gallery');alert('Drawing uploaded to your circle.');
+ };
+ const vote=async item=>{
+  try{await castVote(board.round.id,item.id);await refreshGroup(true);alert('Your vote is saved.')}
+  catch(e){handleError(e)}
+ };
+ const send=async e=>{
+  e.preventDefault();if(!message.trim())return;
+  const body=message.trim();setMessage('');
+  try{await sendMessage(group.id,user.id,body);setChat(await listMessages(group.id))}
+  catch(e){setMessage(body);handleError(e)}
+ };
+ const openDrawing=async item=>{
+  setSelectedDrawing(item);setComments([]);setComment('');setModal('drawing');
+  try{setComments(await listComments(item.id))}catch(e){handleError(e)}
+ };
+ const sendComment=async e=>{
+  e.preventDefault();if(!comment.trim()||!selectedDrawing)return;
+  try{await postComment(selectedDrawing.id,user.id,comment.trim());setComment('');setComments(await listComments(selectedDrawing.id))}
+  catch(e){handleError(e)}
+ };
+ const shareCode=async()=>{
+  if(!group)return;
+  const str='Join my Doodl circle “'+group.name+'” with code: '+group.invite_code;
+  try{if(navigator.share)await navigator.share({text:str,title:'Join my Doodl circle'});
+      else{await navigator.clipboard.writeText(str);alert('Invite copied.');}}
+  catch(e){if(e.name!=='AbortError')alert(str)}
+ };
+ const exportArt=async(round)=>{
+  if(!round?.submissions?.length)return alert('No drawings to export.');
+  const approved=round.consents?.filter(c=>c.approved).map(c=>c.user_id)||[];
+  if(members.some(m=>!approved.includes(m.user_id)))return alert('Every artist must approve group sharing first.');
+  try{
+   setBusy(true);const blob=await composeArtwork(THEMES[round.theme_index],members,round.submissions);
+   const file=new File([blob],'our-doodl.png',{type:'image/png'});
+   if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Our group doodle'});}
+   else{const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);alert('Artwork saved.');}
+  }catch(e){if(e.name!=='AbortError')handleError(e)}finally{setBusy(false)}
+ };
+ const setSharing=async(round)=>{
+  const accepted=round.consents?.some(c=>c.user_id===user.id&&c.approved);
+  try{await approveSharing(round.id,user.id,!accepted);await refreshGroup(true);alert(accepted?'Sharing permission withdrawn.':'You approved group sharing.')}
+  catch(e){handleError(e)}
+ };
+ const saveProfile=async()=>{if(displayName.trim().length<2)return alert('Please enter at least two characters.');
+  try{setBusy(true);await updateProfile(user.id,{display_name:displayName.trim()});await refreshProfile();alert('Profile updated.')}
+  catch(e){handleError(e)}finally{setBusy(false)}
+ };
+ const changeAvatar=async e=>{const file=e.target.files?.[0];if(!file)return;setAvatarBusy(true);
+  try{await uploadAvatar(user.id,file);await refreshProfile();alert('Profile photo updated.')}
+  catch(e){handleError(e)}finally{setAvatarBusy(false)}
+ };
+ const submitReport=async()=>{
+  if(!reportTarget||reportReason.trim().length<4)return alert('Explain why you are reporting this.');
+  try{await reportContent(user.id,reportTarget,'profile',reportReason);setModal('');setReportReason('');alert('Report submitted.')}
+  catch(e){handleError(e)}
+ };
+ const block=async userId=>{
+  if(!window.confirm('Block this person? You will no longer see their messages.'))return;
+  try{await blockUser(user.id,userId);await refreshGroup(true);setModal('');alert('Person blocked.')}
+  catch(e){handleError(e)}
+ };
+ const exitCircle=async()=>{
+  if(!window.confirm(group?.owner_id===user.id?'Delete this circle for everyone?':'Leave this circle?'))return;
+  try{await leaveCircle(group.id,group.owner_id===user.id);setModal('');setScreen('circles');await refreshCircles();alert('Circle updated.')}
+  catch(e){handleError(e)}
+ };
+ if(!backendConfigured)return <SetupRequired/>;
+ if(user===undefined)return <Waiting message="Starting Doodl…"/>;
+ if(!user)return <><Auth onError={handleError}/>{error&&<div className="global-notice error" role="alert">{error}<button onClick={()=>setError('')}><X size={16}/></button></div>}</>;
+ if(screen==='draw'&&group&&board?.phase==='drawing')return <><Canvas key={board.round.id+user.id} roundId={board.round.id} userId={user.id} prompt={prompt} theme={theme} existing={mySubmission} onClose={()=>switchTab('home')} onSubmit={onSubmit} onMessage={alert}/>{toast&&<div className="global-notice">{toast}</div>}</>;
+ return <div className="live-app">
+  <div className="live-device-clock" aria-hidden="true"><span>9:41</span><span>●● ◖▰</span></div>
+  <header className="live-topbar"><button className="wordmark" onClick={()=>switchTab('home')}>doodl<span>.</span></button>
+   <div className="live-top-actions"><IconBtn icon={Bell} label="Notifications" onClick={()=>setModal('notifications')}/><button className="avatar-button" onClick={()=>switchTab('settings')} aria-label="Profile"><Avatar profile={profile} size={34}/></button></div>
+  </header>
+  <main className="live-scroll">
+   {error&&<div className="inline-error" role="alert"><span>{error}</span><button onClick={()=>setError('')} aria-label="Dismiss error"><X size={17}/></button></div>}
+   {screen==='home'&&<div className="screen home-screen">
+    <div className="eyebrow">{new Intl.DateTimeFormat('en-US',{weekday:'long',month:'long',day:'numeric'}).format(now).toUpperCase()}</div>
+    <h1>Draw something<br/><em>together.</em></h1>
+    {!groups.length?<div className="empty-group"><UsersRound size={40}/><h2>Start with your people.</h2><p>Create a circle or join one with an invite code. Only people you invite can join.</p><Btn icon={Plus} onClick={()=>setModal('create')}>Create a circle</Btn><Btn secondary onClick={()=>setModal('join')}>I have an invite code</Btn></div>
+    :<>
+     <div className="story-rail"><button className="story" onClick={()=>setModal('create')}><span className="story-icon"><Plus size={24}/></span><small>New circle</small></button>
+      {groups.map(g=><button key={g.id} className={'story '+(g.id===group?.id?'is-current':'')} onClick={()=>setGroupId(g.id)}><span className="story-icon circle-story"><UsersRound size={24}/></span><small>{g.name}</small></button>)}</div>
+     <div className="overline-row"><span><CalendarDays size={16}/> TODAY'S DROP</span><button onClick={()=>setModal('switch')}>{group?.name}<ChevronDown size={16}/></button></div>
+     {loading?<Waiting/>:board&&<div className="challenge-poster">
+      <div className="poster-image"><span className="poster-watermark"><Palette size={90} strokeWidth={.8}/></span><div><span>{theme.category}</span><h2>{theme.name}</h2></div></div>
+      <div className="challenge-details"><div className="status-row"><span className="phase-tag"><span/>{phase==='drawing'?'DRAWING OPEN':phase==='voting'?'VOTING OPEN':'ROUND COMPLETE'}</span><span>7 AM – 7 PM / {group?.timezone?.split('/').at(-1).replaceAll('_',' ')}</span></div>
+       {phase==='drawing'?<><h3>Your part: {prompt.label}</h3><p>{prompt.description}</p><Btn icon={Pencil} onClick={()=>switchTab('draw')}>{mySubmission?'Redo your drawing':'Start drawing'}</Btn></>
+       :phase==='voting'?<><h3>Time to vote.</h3><p>Everyone's doodles are in. Choose your favorite before 7 AM tomorrow.</p><Btn icon={Heart} onClick={()=>switchTab('gallery')}>See today's drawings</Btn></>
+       :<><h3>That's a wrap.</h3><p>See what your friends made together and check the results.</p><Btn icon={Images} onClick={()=>switchTab('gallery')}>See the artwork</Btn></>}
       </div>
-      <div className="studio-foot"><div><span className="small-label">BRUSH SIZE</span><input aria-label="Brush size" type="range" min="2" max="22" value={size} onChange={(e)=>setSize(Number(e.target.value))}/></div><div className="studio-foot-right"><span>Take your time. It doesn't have to be perfect.</span><Button onClick={submit} icon={ArrowRight} disabled={!hasDrawing}>Finish drawing</Button></div></div>
+     </div>}
+     <div className="section-heading"><h2>Your circle</h2><button onClick={()=>switchTab('circles')}>See all <ChevronRight size={16}/></button></div>
+     <div className="home-circle" onClick={()=>setModal('members')} role="button" tabIndex={0} onKeyDown={e=>{if(e.key==='Enter')setModal('members')}}><GroupAvatars members={members}/><div><strong>{members.length} friends</strong><small>{group?.name}</small></div><ChevronRight size={18}/></div>
+     <div className="home-action-grid"><button onClick={()=>switchTab('chat')}><MessageCircle size={22}/><strong>Group chat</strong><small>Catch up with everyone</small><ArrowRight size={16}/></button><button onClick={()=>switchTab('gallery')}><Images size={22}/><strong>Gallery</strong><small>See today's doodles</small><ArrowRight size={16}/></button></div>
+     {previous&&<><div className="section-heading"><h2>Yesterday's reveal</h2></div><div className="previous-card"><div className="previous-heading"><CheckCheck size={22}/><div><strong>{THEMES[previous.theme_index].name}</strong><small>{previous.submissions.length} drawings · sharing needs everyone's approval</small></div></div><Btn secondary icon={Download} onClick={()=>exportArt(previous)} disabled={busy||!previous.submissions.length||((previous.consents?.filter(c=>c.approved).length||0)<members.length)}>Save or share collage</Btn><button className="text-button consent-home" onClick={()=>switchTab('gallery')}>Review sharing permissions <ArrowRight size={14}/></button></div></>}
+    </>}
+   </div>}
+   {screen==='circles'&&<div className="screen">
+    <div className="eyebrow">YOUR PEOPLE</div><h1>My circles<span>.</span></h1><p className="screen-subtitle">A private space for you and your friends. No public search.</p>
+    <div className="top-pair"><Btn onClick={()=>setModal('create')} icon={Plus}>Create</Btn><Btn secondary onClick={()=>setModal('join')} icon={UserRoundPlus}>Join with code</Btn></div>
+    <div className="list-section-label">YOUR CIRCLES / {groups.length}</div>
+    {groups.length?<div className="circle-list">{groups.map(g=><button className={'circle-row '+(g.id===group?.id?'selected':'')} key={g.id} onClick={()=>{setGroupId(g.id);switchTab('home')}}><span className="circle-icon"><UsersRound size={24}/></span><span><strong>{g.name}</strong><small>{g.kind==='duo'?'One-on-one':'Group circle'} · Private</small></span><ChevronRight size={18}/></button>)}</div>
+    :<div className="empty-small"><UsersRound size={32}/><h3>No circles yet.</h3><p>Invite a friend and create your first shared canvas.</p></div>}
+    {group&&<><div className="section-heading"><h2>{group.name}</h2><button onClick={()=>setModal('members')}>Members <ChevronRight size={16}/></button></div>
+    <div className="code-card"><span>INVITE CODE</span><strong>{group.invite_code}</strong><p>Share this code with people you trust. Up to {group.kind==='duo'?'2':'8'} members.</p><Btn secondary icon={Share2} onClick={shareCode}>Share invite</Btn></div>
+    <div className="list-section-label">MEMBERS</div><MemberPicker circle={group} members={members} me={user.id} onReport={id=>{setReportTarget(id);setModal('report')}}/>
+    <button className="danger-link" onClick={exitCircle}><Trash2 size={17}/>{group.owner_id===user.id?'Delete circle':'Leave circle'}</button></>}
+   </div>}
+   {screen==='gallery'&&<div className="screen">
+    <div className="eyebrow">FRIEND ARTWORK</div><h1>The gallery<span>.</span></h1><p className="screen-subtitle">What everyone made from today's theme.</p>
+    {!group?<div className="empty-small"><Images size={33}/><p>Join a circle to see drawings.</p></div>:loading?<Waiting/>:board&&<>
+     <div className="gallery-period"><div><span className="phase-tag"><span/>{phase==='drawing'?'DRAWING':phase==='voting'?'VOTING':'REVEALED'}</span><h3>{theme.name}</h3><p>{board.submissions.length} / {members.length} drawings submitted</p></div><Clock3 size={24}/></div>
+     {board.submissions.length===0?<div className="empty-small"><Pencil size={32}/><h3>No drawings yet.</h3><p>Be the first person to make something for this round.</p>{phase==='drawing'&&<Btn icon={Pencil} onClick={()=>switchTab('draw')}>Start drawing</Btn>}</div>
+     :<div className="drawing-grid">{board.submissions.map(s=><article className="drawing-card" key={s.id}>
+      <button className="drawing-image" onClick={()=>openDrawing(s)}>{s.url?<img src={s.url} alt={'Drawing by '+(people[s.user_id]?.display_name||'Artist')}/>:<ImageIcon size={30}/>}</button>
+      <div className="drawing-person"><Avatar profile={people[s.user_id]} size={31}/><span>{people[s.user_id]?.display_name||'Artist'}</span><button aria-label="Comments" onClick={()=>openDrawing(s)}><MessageCircle size={19}/></button></div>
+      {phase==='voting'&&s.user_id!==user.id&&<button className={'vote-action '+(board.myVote===s.id?'voted':'')} onClick={()=>vote(s)}><Heart size={17} fill={board.myVote===s.id?'currentColor':'none'}/>{board.myVote===s.id?'Voted':'Vote for this'}</button>}
+     </article>)}</div>}
+     {phase==='drawing'&&<p className="helper-note"><Clock3 size={16}/> Voting opens at 7 PM in your circle's timezone.</p>}
+     {phase==='voting'&&<p className="helper-note"><Heart size={16}/> One vote per member. You can change your vote until 7 AM.</p>}
+     {phase==='revealed'&&<div className="gallery-export"><h3>Your group's artwork</h3><p>Export all submitted drawings together as a shareable collage. AI blending will be added later. Each artist must approve sharing.</p><div className="consent-status"><Shield size={16}/>{board.consents?.filter(c=>c.approved).length||0} / {members.length} artists approved sharing</div><button className="consent-toggle" onClick={()=>setSharing({...board.round,consents:board.consents})}>{board.consents?.some(c=>c.user_id===user.id&&c.approved)?<CheckCircle2 size={19}/>:<Shield size={19}/>} {board.consents?.some(c=>c.user_id===user.id&&c.approved)?'Withdraw permission':'Approve group sharing'}</button><Btn icon={Download} onClick={()=>exportArt({...board.round,submissions:board.submissions,consents:board.consents})} disabled={busy||((board.consents?.filter(c=>c.approved).length||0)<members.length)}>Save or share</Btn></div>}
+     {previous&&phase!=='revealed'&&<div className="gallery-export"><div className="eyebrow">PREVIOUS ROUND</div><h3>{THEMES[previous.theme_index].name}</h3><p>{previous.submissions.length} submitted drawings · {previous.consents?.filter(c=>c.approved).length||0} / {members.length} sharing approvals</p><button className="consent-toggle" onClick={()=>setSharing(previous)}>{previous.consents?.some(c=>c.user_id===user.id&&c.approved)?'Withdraw sharing permission':'Approve sharing'}</button><Btn secondary icon={Share2} onClick={()=>exportArt(previous)} disabled={busy||!previous.submissions.length||((previous.consents?.filter(c=>c.approved).length||0)<members.length)}>Share last round</Btn></div>}
+    </>}
+   </div>}
+   {screen==='chat'&&<div className="screen chat-screen">
+    <header className="chat-screen-head"><div className="eyebrow">YOUR CIRCLE</div><h1>{group?.name||'Messages'}</h1><div className="chat-avatars"><GroupAvatars members={members} size={29}/><span>{members.length} members</span></div></header>
+    {!group?<div className="empty-small"><MessageCircle size={31}/><p>Create a circle first.</p></div>:
+    <><div className="messages-scroll">{chat.length===0?<div className="empty-chat"><MessageCircle size={32}/><h3>Say something first.</h3><p>This conversation stays in your private circle.</p></div>:chat.map(m=><div className={'message '+(m.user_id===user.id?'mine':'')} key={m.id}>{m.user_id!==user.id&&<Avatar profile={people[m.user_id]} size={31}/>}<div><span className="message-name">{m.user_id===user.id?'You':people[m.user_id]?.display_name||'Artist'}</span><p>{m.body}</p><time>{new Date(m.created_at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</time></div></div>)}</div>
+    <form className="message-compose" onSubmit={send}><input value={message} onChange={e=>setMessage(e.target.value)} maxLength={800} placeholder="Message your circle..." aria-label="Message"/><button type="submit" aria-label="Send" disabled={!message.trim()}><Send size={20}/></button></form></>}
+   </div>}
+   {screen==='ranks'&&<div className="screen">
+    <div className="eyebrow">CREATIVE BRAGGING RIGHTS</div><h1>Leaderboard<span>.</span></h1><p className="screen-subtitle">Points are awarded when a voting round finishes.</p>
+    {group?<><div className="leader-banner"><Trophy size={29}/><div><strong>{group.name}</strong><small>10 points for every vote received</small></div></div>
+     {scores.length?<div className="leader-list">{scores.map((rank,i)=><div key={rank.user_id} className="leader-row"><span className="leader-position">{String(i+1).padStart(2,'0')}</span><Avatar profile={people[rank.user_id]} size={43}/><span className="leader-name">{people[rank.user_id]?.display_name||'Artist'}{rank.user_id===user.id?' (you)':''}</span><strong>{rank.points} <small>pts</small></strong></div>)}</div>:<div className="empty-small"><Trophy size={35}/><p>Scores appear here after voting closes.</p></div>}</>:
+     <div className="empty-small"><Trophy size={35}/><p>Join a circle to start earning points.</p></div>}
+   </div>}
+   {screen==='settings'&&<div className="screen">
+    <div className="eyebrow">PERSONAL SPACE</div><h1>My profile<span>.</span></h1>
+    <div className="profile-card"><div className="profile-picture"><Avatar profile={profile} size={76}/><label className="upload-overlay" htmlFor="avatar-file" aria-label="Upload profile photo"><UploadCloud size={17}/></label><input id="avatar-file" accept="image/jpeg,image/png,image/webp" type="file" disabled={avatarBusy} onChange={changeAvatar}/></div><div><strong>{profile?.display_name||'Artist'}</strong><small>{user.email}</small></div></div>
+    <label className="field-label" htmlFor="displayname">DISPLAY NAME</label><input className="field-input" id="displayname" maxLength={32} value={displayName} onChange={e=>setDisplayName(e.target.value)} placeholder="Your name"/><Btn onClick={saveProfile} disabled={busy||profileLoading} icon={Check}>Save profile</Btn>
+    <div className="settings-section"><div className="section-heading"><h2>Privacy and account</h2></div>
+     <div className="setting-item"><Shield size={19}/><div><strong>Private circles</strong><small>Your content is only available to members of your circles.</small></div></div>
+     <div className="setting-item"><Bell size={19}/><div><strong>Notifications</strong><small>Background push reminders are not yet configured. Turn on browser alerts only when this page is open.</small></div><button className="text-button" onClick={async()=>{if(!('Notification'in window))return alert('Notifications unavailable here.');const p=await Notification.requestPermission();alert(p==='granted'?'Permission granted. Background scheduling still needs a push service.':'Permission not granted.')}}>Enable</button></div>
+     <button className="setting-item setting-button" onClick={async()=>{await supabase.auth.signOut();setScreen('home')}}><LogOut size={19}/><div><strong>Sign out</strong></div><ArrowRight size={17}/></button>
+    </div><p className="helper-note">Doodl does not provide public user discovery. Never share private group codes publicly.</p>
+   </div>}
+  </main>
+  <nav className="live-tabs" aria-label="Primary navigation">{[
+   {id:'home',icon:Home,label:'Home'},
+   {id:'circles',icon:UsersRound,label:'Circles'},
+   {id:'draw',icon:Pencil,label:'Draw'},
+   {id:'gallery',icon:Images,label:'Gallery'},
+   {id:'ranks',icon:Trophy,label:'Ranks'}
+  ].map(item=><button key={item.id} className={'tab '+(screen===item.id?'selected':'')+' '+(item.id==='draw'?'draw-tab':'')} onClick={()=>{if(item.id==='draw'&&(!group||phase!=='drawing')){alert(!group?'Create or join a circle first.':'Drawing is only open from 7 AM–7 PM.');return;}switchTab(item.id)}} aria-label={item.label}><span className="tab-icon"><item.icon size={22} strokeWidth={screen===item.id?2.4:1.8}/></span><small>{item.label}</small></button>)}</nav>
+  {modal==='create'&&<Modal title="Create a circle" subtitle="No public search. Only your invited friends can join." onClose={()=>setModal('')}><label className="field-label" htmlFor="circle">CIRCLE NAME</label><input id="circle" className="field-input" maxLength={48} value={newCircle} onChange={e=>setNewCircle(e.target.value)} placeholder="e.g. The Late Night Crew"/><div className="field-label">TYPE</div><div className="toggle-choice"><button className={kind==='group'?'active':''} onClick={()=>setKind('group')}><UsersRound size={18}/> Group (up to 8)</button><button className={kind==='duo'?'active':''} onClick={()=>setKind('duo')}><UserRound size={18}/> One-on-one</button></div><p className="sheet-help">Friends join with a private invite code. They need their own accounts.</p><Btn icon={ArrowRight} disabled={busy} onClick={create}>Create circle</Btn></Modal>}
+  {modal==='join'&&<Modal title="Join a circle" subtitle="Enter the invitation code from your friend." onClose={()=>setModal('')}><label className="field-label" htmlFor="invite">INVITATION CODE</label><input className="field-input invite-code-input" id="invite" value={joinCode} onChange={e=>setJoinCode(e.target.value.toUpperCase())} maxLength={16} placeholder="ENTER CODE" autoCapitalize="characters"/><Btn icon={ArrowRight} disabled={busy} onClick={join}>Join circle</Btn></Modal>}
+  {modal==='switch'&&<Modal title="Switch circle" onClose={()=>setModal('')}><div className="circle-list">{groups.map(g=><button key={g.id} className={'circle-row '+(g.id===group?.id?'selected':'')} onClick={()=>{setGroupId(g.id);setModal('')}}><span className="circle-icon"><UsersRound size={22}/></span><span><strong>{g.name}</strong><small>{g.kind==='duo'?'One-on-one':'Group'}</small></span>{g.id===group?.id?<CheckCircle2 size={19}/>:<ChevronRight size={18}/>}</button>)}</div><button className="sheet-link" onClick={()=>setModal('create')}><Plus size={17}/> Make another circle</button></Modal>}
+  {modal==='members'&&<Modal title={group?.name||'Members'} subtitle="People in this circle" onClose={()=>setModal('')}><MemberPicker circle={group} members={members} me={user.id} onReport={id=>{setReportTarget(id);setModal('report')}}/><div className="sheet-footer"><Btn secondary icon={Share2} onClick={shareCode}>Share invitation</Btn></div></Modal>}
+  {modal==='drawing'&&selectedDrawing&&<Modal title={people[selectedDrawing.user_id]?.display_name||'Doodle'} subtitle="Submitted artwork" onClose={()=>setModal('')}>
+    <div className="detail-art">{selectedDrawing.url?<img src={selectedDrawing.url} alt="Selected friend's drawing"/>:<ImageIcon size={38}/>}</div>
+    <div className="detail-caption"><Avatar profile={people[selectedDrawing.user_id]} size={35}/><strong>{people[selectedDrawing.user_id]?.display_name||'Artist'}</strong>
+     {selectedDrawing.user_id!==user.id&&<button className="flag-icon" onClick={()=>{setReportTarget(selectedDrawing.id);setModal('report-art')}} aria-label="Report drawing"><Flag size={17}/></button>}
     </div>
-    {showPrompt && <Modal title="Your prompt" subtitle="Only you can see this assignment." onClose={() => setShowPrompt(false)}><div className="prompt-modal"><span className="tiny-eyebrow">TODAY'S DRAWING</span><h3>{prompt.label}</h3><p>{prompt.detail}</p><Button onClick={() => setShowPrompt(false)}>Got it <Check size={16}/></Button></div></Modal>}
-  </main>;
+    <h3 className="detail-section">Comments</h3>
+    <div className="comments-list">{comments.length?comments.map(c=><div className="comment-item" key={c.id}><Avatar profile={people[c.user_id]} size={31}/><div><strong>{people[c.user_id]?.display_name||'Artist'}</strong><p>{c.body}</p></div></div>):<p className="sheet-help">No comments yet. Say something kind.</p>}</div>
+    <form className="comment-compose" onSubmit={sendComment}><input value={comment} onChange={e=>setComment(e.target.value)} maxLength={350} placeholder="Leave a comment..." aria-label="Comment"/><button type="submit" disabled={!comment.trim()}><Send size={19}/></button></form>
+    {phase==='voting'&&selectedDrawing.user_id!==user.id&&<Btn icon={Heart} onClick={()=>{vote(selectedDrawing);setModal('')}}>{board.myVote===selectedDrawing.id?'Change vote':'Vote for this drawing'}</Btn>}
+   </Modal>}
+  {modal==='notifications'&&<Modal title="Daily reminders" subtitle="One prompt every day at 7 AM" onClose={()=>setModal('')}><div className="notification-info"><CalendarDays size={26}/><h3>Make time for something creative.</h3><p>Draw between 7 AM and 7 PM, vote overnight, and see the reveal the next morning. Background push is not yet connected.</p></div><Btn secondary onClick={()=>{setModal('');switchTab('gallery')}} icon={Images}>Open the gallery</Btn></Modal>}
+  {(modal==='report'||modal==='report-art')&&<Modal title="Report content" subtitle="Help us keep circles safer." onClose={()=>setModal('')}><label className="field-label" htmlFor="reason">WHAT HAPPENED?</label><textarea id="reason" className="field-input" rows={4} maxLength={500} value={reportReason} onChange={e=>setReportReason(e.target.value)} placeholder="Tell us what is wrong…"/><Btn icon={Flag} onClick={async()=>{if(modal==='report-art'){try{await reportContent(user.id,reportTarget,'drawing',reportReason);setModal('');alert('Report submitted.')}catch(e){handleError(e)}}else submitReport()}}>Submit report</Btn>{modal==='report'&&<button className="sheet-link" onClick={()=>block(reportTarget)}><Ban size={17}/> Block this person</button>}</Modal>}
+  {toast&&<div className="global-notice" role="status">{toast}</div>}
+ </div>;
 }
-function composeImage(group, members, submission, theme, onDone) {
-  if (!submission) { onDone(''); return; }
-  const canvas = document.createElement('canvas');
-  canvas.width = 1080; canvas.height = 1080;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#f2eee8'; ctx.fillRect(0,0,1080,1080);
-  ctx.fillStyle = '#1b1a1c'; ctx.font = 'bold 24px sans-serif'; ctx.fillText('DOODL  /  DAILY DROP', 64, 83);
-  ctx.font = 'bold 55px sans-serif'; ctx.fillText(theme.title, 64, 152);
-  ctx.fillStyle = '#aaa3a0'; ctx.fillRect(64,181,952,3);
-  const img = new window.Image();
-  img.onload = () => {
-    ctx.fillStyle='#fffdfa'; ctx.fillRect(64,219,952,710);
-    const scale = Math.min(952/img.width,710/img.height);
-    const w=img.width*scale,h=img.height*scale;
-    ctx.drawImage(img,64+(952-w)/2,219+(710-h)/2,w,h);
-    ctx.font='25px sans-serif';ctx.fillStyle='#4e4b49';
-    ctx.fillText('BY '+members.length+' FRIENDS  •  '+group.name.toUpperCase(),64,1014);
-    onDone(canvas.toDataURL('image/png'));
-  };
-  img.onerror = () => onDone('');
-  img.src=submission;
-}
-function Reveal({ group, members, submission, theme, onDownload, onShare }) {
-  const [image,setImage]=useState('');
-  useEffect(()=>{let alive=true;composeImage(group,members,submission,theme,(src)=>{if(alive)setImage(src);});return()=>{alive=false;};},[group.id,submission,theme.title]);
-  return <div className="reveal">
-    <div className="reveal-text"><span className="tag tag-accent"><Sparkles size={13}/> FINAL REVEAL</span><h2>Better when<br/><em>we make it together.</em></h2><p>{submission ? 'Your submission, packaged as an exportable poster. The group-wide AI blend is not connected yet.' : 'A preview of the final group artwork. Submit a drawing first to enable export.'}</p><Stack ids={members} size={38}/><div className="reveal-actions"><Button icon={Download} disabled={!image} onClick={()=>image && onDownload(image)}>Save artwork</Button><Button variant="outline" disabled={!image} icon={Share2} onClick={()=>image && onShare(image)}>Share</Button></div></div>
-    <div className="final-art">{image ? <img src={image} alt={'Composed drawing for ' + theme.title}/> : <Illustration variant="building" className="reveal-preview-photo"/>}<span className="art-stamp">{submission ? "YOUR ARTWORK" : "REFERENCE PREVIEW"} <ImageIcon size={13}/></span></div>
-  </div>;
-}
-const NAV=[
-  {id:'home',label:'Home',icon:Home},{id:'groups',label:'My circles',icon:UsersRound},
-  {id:'gallery',label:'The gallery',icon:Images},{id:'leaderboard',label:'Leaderboard',icon:Trophy}
-];
-function App() {
-  const [db,setDb]=useState(getSaved);
-  const [view,setView]=useState('home');
-  const [modal,setModal]=useState('');
-  const [now,setNow]=useState(()=>new Date());
-  const [demo,setDemo]=useState('live');
-  const [showDemo,setShowDemo]=useState(false);
-  const [toastMessage,setToastMessage]=useState('');
-  const [newGroupName,setNewGroupName]=useState('');
-  const [newGroupType,setNewGroupType]=useState('group');
-  const [chosen,setChosen]=useState(['maya','jules','noah']);
-  const [joinCode,setJoinCode]=useState('');
-  const [chatText,setChatText]=useState('');
-  const [commentText,setCommentText]=useState('');
-  const [selectedSketch,setSelectedSketch]=useState(null);
-  const [seconds,setSeconds]=useState(420);
-  const [paused,setPaused]=useState(false);
-  const [showChat,setShowChat]=useState(false);
-  const [notificationsOn,setNotificationsOn]=useState(false);
-  const [customName,setCustomName]=useState(db.profile.name);
-  const timerRef=useRef(null);
-  const group=db.groups.find((g)=>g.id===db.activeGroup)||db.groups[0];
-  const members=group.members;
-  const theme=getTheme(now);
-  const phase=demo==='live'?getRealPhase(now):demo;
-  const prompt=theme.prompts[Math.max(0,members.indexOf('you'))%theme.prompts.length];
-  const dayKey=getDayKey(now);
-  const roundKey=group.id+'@'+dayKey;
-  const yesterday=new Date(now);yesterday.setDate(yesterday.getDate()-1);
-  const previousKey=group.id+'@'+getDayKey(new Date(yesterday.getFullYear(),yesterday.getMonth(),yesterday.getDate(),12));
-  const previousSketch=db.submissions[previousKey]?.you;
-  const previousTheme=getTheme(new Date(yesterday.getFullYear(),yesterday.getMonth(),yesterday.getDate(),12));
-  const savedSketch=db.submissions[roundKey]?.you;
-  const peopleInGroup=members.map(getPerson);
-  const vote=db.votes[roundKey];
-  const userScores={you:74,maya:124,jules:106,noah:92,ava:83};
-  const revealedVote=db.votes[previousKey];
-  if (revealedVote) userScores[revealedVote]=(userScores[revealedVote]||0)+10;
-  const ranking=peopleInGroup.map(p=>({...p,score:userScores[p.id]||0})).sort((a,b)=>b.score-a.score);
-  const activeSketches=members.map((id,i)=>({id,person:getPerson(id),role:theme.prompts[i%theme.prompts.length],image:id==='you'?savedSketch:null,kind:id==='maya'?'sky':id==='jules'?'locals':id==='noah'?'transport':id==='ava'?'city':'city',sample:id!=='you'&&group.demo}));
-  useEffect(()=>{try{localStorage.setItem(KEY,JSON.stringify(db));}catch(_){}},[db]);
-  useEffect(()=>{const id=setInterval(()=>setNow(new Date()),30000);return()=>clearInterval(id);},[]);
-  useEffect(()=>{if(view!=='draw'||paused||seconds<=0)return;timerRef.current=setInterval(()=>setSeconds(s=>Math.max(0,s-1)),1000);return()=>clearInterval(timerRef.current);},[view,paused,seconds<=0]);
-  useEffect(()=>{if(seconds===0)setPaused(true);},[seconds]);
-  useEffect(()=>{
-    if(!db.profile.notifications||!('Notification'in window)||Notification.permission!=='granted')return;
-    const hour=now.getHours();const minute=now.getMinutes();
-    if ((hour===7||hour===19)&&minute===0){
-      const key='doodle-alert-'+getDayKey(now)+'-'+hour;
-      if(sessionStorage.getItem(key))return;
-      sessionStorage.setItem(key,'1');
-      try {new Notification(hour===7?'Your daily doodle is ready':'Voting has opened!',{body:hour===7?'Your group has a new challenge.':'Check out what your friends made.'});}catch(_){}
-    }
-  },[now,db.profile.notifications]);
-  useEffect(()=>{if(toastMessage){const t=setTimeout(()=>setToastMessage(''),3500);return()=>clearTimeout(t);}},[toastMessage]);
-  const notify=(msg)=>setToastMessage(msg);
-  const update=(fn)=>setDb(d=>fn(d));
-  const switchView=(next)=>{if(view==='draw')setPaused(true);setView(next);window.scrollTo({top:0,behavior:'smooth'});};
-  const selectGroup=(id)=>{update(d=>({...d,activeGroup:id}));switchView('home');};
-  const createGroup=()=>{
-    const name=newGroupName.trim();
-    if(name.length<2)return notify('Give your circle a name first.');
-    if(newGroupType==='duo'&&chosen.length!==1)return notify('Choose one friend for a one-on-one.');
-    if(newGroupType==='group'&&chosen.length<1)return notify('Choose at least one friend.');
-    const id='g'+Date.now();
-    const g={id,name,code:freshCode(),members:['you',...chosen],type:newGroupType,demo:false,created:new Date().toISOString().slice(0,10)};
-    update(d=>({...d,groups:[...d.groups,g],activeGroup:id,chats:{...d.chats,[id]:[]}}));
-    setModal('');setNewGroupName('');switchView('home');notify('Your circle is ready. Invite your friends with the code.');
-  };
-  const joinGroup=()=>{
-    const found=db.groups.find(g=>g.code.toUpperCase()===joinCode.trim().toUpperCase());
-    if(found){selectGroup(found.id);setModal('');setJoinCode('');notify('Opened ' + found.name);return;}
-    notify('This preview stores circles only on this device. Cross-device invites need a backend.');
-  };
-  const copyCode=async()=>{
-    try{await navigator.clipboard.writeText(group.code);notify('Invite code copied.');}
-    catch(_){notify('Code: '+group.code);}
-  };
-  const startDraw=()=>{setSeconds(s=>s||420);setPaused(false);switchView('draw');setPaused(false);};
-  const submitDrawing=(dataUrl)=>{
-    update(d=>({...d,submissions:{...d.submissions,[roundKey]:{...(d.submissions[roundKey]||{}),you:dataUrl}}}));
-    setPaused(true);switchView('gallery');notify('Drawing saved! You can revisit it in the gallery.');
-  };
-  const voteFor=(id)=>{
-    if(id==='you')return notify('You can’t vote for your own doodle.');
-    if(phase!=='voting')return notify('Voting opens at 7 PM. Use demo preview to explore it now.');
-    update(d=>({...d,votes:{...d.votes,[roundKey]:id}}));notify('Vote saved for '+getPerson(id).name+'!');
-  };
-  const sendChat=()=>{
-    const text=chatText.trim();if(!text)return;
-    update(d=>({...d,chats:{...d.chats,[group.id]:[...(d.chats[group.id]||[]),{id:'m'+Date.now(),by:'you',text,at:formatTime(new Date())}]}}));
-    setChatText('');
-  };
-  const sendComment=()=>{
-    const text=commentText.trim();if(!text||!selectedSketch)return;
-    const key=roundKey+':'+selectedSketch.id;
-    update(d=>({...d,comments:{...d.comments,[key]:[...(d.comments[key]||[]),{id:Date.now(),by:'you',text}]}}));
-    setCommentText('');
-  };
-  const download=(src)=>{
-    const a=document.createElement('a');a.href=src;a.download='our-daily-doodle.png';document.body.appendChild(a);a.click();a.remove();notify('Artwork saved.');
-  };
-  const share=async(src)=>{
-    if(!navigator.share){download(src);return;}
-    try{
-      const res=await fetch(src);const blob=await res.blob();const file=new File([blob],'our-daily-doodle.png',{type:'image/png'});
-      if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Our daily doodle'});}
-      else await navigator.share({title:'Our daily doodle'});
-    }catch(e){if(e.name!=='AbortError')download(src);}
-  };
-  const toggleNotification=async()=>{
-    if(!('Notification'in window))return notify('This browser does not support notifications.');
-    try{
-      const permission=await Notification.requestPermission();
-      if(permission==='granted'){update(d=>({...d,profile:{...d.profile,notifications:!d.profile.notifications}}));notify('Browser alerts only work while this prototype is open.');}
-      else notify('Notifications are blocked in your browser.');
-    }catch(_){notify('Notification permission unavailable.');}
-  };
-  const openSketch=(sketch)=>{setSelectedSketch(sketch);setCommentText('');setModal('sketch');};
-  const groupChat=db.chats[group.id]||[];
-  const tabs=<div className="nav-items">{NAV.map(item=><button key={item.id} className={'nav-link '+(view===item.id?'nav-active':'')} onClick={()=>switchView(item.id)}><item.icon size={21} strokeWidth={view===item.id?2.4:1.8}/><span>{item.label}</span>{view===item.id&&<i/>}</button>)}</div>;
-  const groupMini=<button className="current-circle" onClick={()=>setModal('switch')}><div className="circle-badge"><Avatar id={group.members.find(x=>x!=='you')||'you'} size={37}/></div><div><strong>{group.name}</strong><span>{members.length} friends in here</span></div><ChevronRight size={17}/></button>;
-  if(view==='draw')return <>
-    <DrawingStudio group={group} prompt={prompt} initialSeconds={seconds} paused={paused} onPause={setPaused} onTime={setSeconds} onExit={()=>switchView('home')} onSubmit={submitDrawing} toast={notify}/>
-    {toastMessage&&<div role="status" className="toast"><Info size={17}/>{toastMessage}</div>}
-  </>;
-  return <div className="app-shell">
-    <div className="device-status" aria-hidden="true"><span>9:41</span><span className="device-status-icons">●● <span className="device-battery">▰</span></span></div>
-    <aside className="sidebar">
-      <button className="logo" onClick={()=>switchView('home')}>doodl<b>.</b></button>
-      <div className="sidebar-label">YOUR SPACE</div>{tabs}
-      <div className="sidebar-gap"/>
-      <div className="sidebar-label">YOUR CIRCLE</div>{groupMini}
-      <button className="sidebar-add" onClick={()=>setModal('new')}><Plus size={16}/> New circle</button>
-      <div className="sidebar-bottom"><div className="mini-avatar"><Avatar id="you" size={39}/></div><div className="sidebar-me"><strong>{db.profile.name}</strong><span>your creative corner</span></div><button className="icon-button" onClick={()=>switchView('profile')} title="Settings"><Settings2 size={20}/></button></div>
-    </aside>
-    <div className="page-area">
-      <header className="topbar">
-        <button className="mobile-logo" onClick={()=>switchView('home')}>doodl<b>.</b></button>
-        <div className="topbar-titles"><span>THE DAILY DROP</span><strong>{view==='home'?'Home':view==='groups'?'Your circles':view==='gallery'?'The gallery':view==='leaderboard'?'Leaderboard':'Your space'}</strong></div>
-        <div className="topbar-right"><button className="icon-button preview-trigger" title="Preview test stages" aria-label="Preview test stages" aria-expanded={showDemo} onClick={()=>setShowDemo(v=>!v)}><SlidersHorizontal size={19}/></button><span className="day-badge"><span className="live-dot"/> {getRealPhase(now)==='drawing'?'Drawing window':'Voting window'}</span><button className="icon-button notification-btn" title="Notifications" onClick={()=>setModal('notifications')}><Bell size={21}/><span className="unread-dot"/></button><button className="user-pill" onClick={()=>switchView('profile')}><Avatar id="you" size={33}/></button></div>
-      </header>
-      <main className="content">
-        <div className={'demo-strip '+(showDemo?'demo-open':'')}>
-          <button className="demo-toggle" onClick={()=>setShowDemo(v=>!v)} aria-expanded={showDemo}>
-            <span><Sparkles size={13}/> Interactive prototype <span className="demo-current">{demo==='live'?'Live':demo==='drawing'?'Drawing':demo==='voting'?'Voting':'Reveal'}</span></span><ChevronRight size={15}/>
-          </button>
-          {showDemo&&<div className="demo-options">{[{id:'live',label:'Live'},{id:'drawing',label:'Draw'},{id:'voting',label:'Vote'},{id:'reveal',label:'Reveal'}].map(item=><button key={item.id} className={demo===item.id?'selected':''} onClick={()=>{setDemo(item.id);setShowDemo(false);}}>{item.label}</button>)}</div>}
-        </div>
-        {view==='home'&&<>
-          <div className="welcome-row"><div><div className="eyebrow">{formatDate(now).toUpperCase()}</div><h1>Make something<br/><em>weird today.</em></h1><p>Your daily dose of drawing with friends.</p></div><div className="welcome-side"/></div>
-          <div className="mobile-stories" aria-label="Your friend circles">
-            <button className="story-item" onClick={()=>setModal('new')}><span className="story-ring story-add"><Plus size={25}/></span><span>New circle</span></button>
-            {db.groups.map((circle, i)=><button key={circle.id} className={'story-item '+(circle.id===group.id?'story-selected':'')} onClick={()=>selectGroup(circle.id)}>
-              <span className="story-ring"><Avatar id={circle.members.find(x=>x!=='you')||'you'} size={58}/></span>
-              <span>{circle.name.length>12?circle.name.slice(0,10)+'…':circle.name}</span>
-            </button>)}
-            <button className="story-item" onClick={()=>setModal('join')}><span className="story-ring story-join"><UserRoundPlus size={21}/></span><span>Join circle</span></button>
-          </div>
-          <div className="home-meta"><span><CalendarDays size={14}/> TODAY'S CHALLENGE</span><button onClick={()=>setModal('switch')}>{group.name} <ChevronRight size={15}/></button></div>
-          <div className="hero-card">
-            <div className="hero-copy"><div className="hero-badges"><span className="tag tag-dark"><span className="pulse-dot"/> TODAY'S DROP</span><span className="tag tag-dark">{theme.label}</span></div><div className="hero-overline">YOUR DAILY CREATIVE CHALLENGE</div><h2>{theme.title}</h2><p>{theme.subtitle}</p><div className="hero-action"><Button onClick={startDraw} icon={ArrowRight}>{savedSketch?'Draw again':'Start doodling'}</Button><span><Clock3 size={15}/> 7 AM – 7 PM</span></div></div>
-            <div className="hero-image"><Illustration variant="city"/><span className="hero-art-credit"><Images size={12}/> SAMPLE ARTWORK</span></div>
-          </div>
-          <div className="schedule"><div className={'schedule-step '+(phase==='drawing'?'step-active':'')}><span className="schedule-icon"><Pencil size={19}/></span><div><strong>01 / Draw</strong><span>7 AM – 7 PM</span></div></div><div className="schedule-line"/><div className={'schedule-step '+(phase==='voting'?'step-active':'')}><span className="schedule-icon"><Heart size={19}/></span><div><strong>02 / Vote</strong><span>7 PM – 7 AM</span></div></div><div className="schedule-line"/><div className={'schedule-step '+(phase==='reveal'?'step-active':'')}><span className="schedule-icon"><Sparkles size={19}/></span><div><strong>03 / Reveal</strong><span>Next day, 7 AM</span></div></div></div>
-          {phase==='reveal'?<Reveal group={group} members={members} submission={savedSketch} theme={theme} onDownload={download} onShare={share}/>:<div className="home-columns">
-            <div className="daily-prompt"><div className="section-label"><span className="mono">01 / YOUR ASSIGNMENT</span><span className="privacy"><LockKeyhole size={12}/> JUST FOR YOU</span></div><span className="prompt-icon"><Palette size={82} strokeWidth={1.2}/></span><span className="prompt-caption">YOU GOT THE</span><h3>{prompt.label}<span>.</span></h3><p>{prompt.detail}</p><Button onClick={startDraw} icon={ArrowRight} variant="white">{savedSketch?'Edit your drawing':'Let’s draw'}</Button></div>
-            <div className="crew-card"><div className="section-label"><span className="mono">02 / YOUR CREW</span><button onClick={()=>setShowChat(true)}>Open chat <ArrowRight size={15}/></button></div><div className="crew-list">{members.map((id,i)=><div key={id} className="crew-person"><Avatar id={id} size={42}/><div><strong>{id==='you'?db.profile.name:getPerson(id).name}</strong><span>{theme.prompts[i%theme.prompts.length].label}</span></div><span className={'person-status '+(id==='you'&&savedSketch?'complete':'')}>{id==='you'?(savedSketch?'Done':'You'):(group.demo?'Sketching':'Invited')}</span></div>)}</div><button className="crew-invite" onClick={()=>setModal('invite')}><UserRoundPlus size={18}/> Invite someone <ArrowRight size={17}/></button></div>
-          </div>}
-          <div className="section-header"><div><div className="eyebrow">PULL UP A SEAT</div><h2>What your friends are making<span className="accent-period">.</span></h2></div><button onClick={()=>switchView('gallery')} className="text-link">See all sketches <ArrowRight size={17}/></button></div>
-          <div className="preview-gallery">{activeSketches.filter(a=>a.id!=='you'||a.image).slice(0,3).map((art,i)=><button key={art.id} className="art-preview" onClick={()=>openSketch(art)}><div className={'art-cover tone-'+i}>{art.image?<img src={art.image} alt="Your doodle"/>:<Illustration variant={art.kind}/>}<span className="art-cover-icon"><MessageCircle size={17}/></span></div><div className="art-preview-meta"><Avatar id={art.id} size={32}/><div><strong>{art.person.name}</strong><span>{art.role.label}</span></div><ChevronRight size={17}/></div></button>)}</div>
-          {(previousSketch||group.demo)&&<><div className="section-header"><div><div className="eyebrow">THE MORNING AFTER</div><h2>Yesterday's group artwork<span className="accent-period">.</span></h2></div><span className="count-chip">Unlocked at 7 AM</span></div><Reveal group={group} members={members} submission={previousSketch} theme={previousTheme} onDownload={download} onShare={share}/></>}
-          {group.demo&&<div className="demo-note"><Info size={16}/><span>The other friends and their sketches are sample data for the prototype. Changes are saved in this browser only.</span></div>}
-        </>}
-        {view==='groups'&&<>
-          <div className="page-heading"><span className="eyebrow">YOUR PEOPLE / YOUR RULES</span><h1>Good ideas<br/><em>start together.</em></h1><p>Create a private circle or hang out one-on-one. Invite friends using a code, never a public search.</p><div className="heading-actions"><Button onClick={()=>setModal('new')} icon={Plus}>Create a circle</Button><Button onClick={()=>setModal('join')} variant="outline" icon={ArrowRight}>Join with code</Button></div></div>
-          <div className="section-header"><h2>Your circles<span className="accent-period">.</span></h2><span className="count-chip">{db.groups.length} total</span></div>
-          <div className="group-grid">{db.groups.map(g=><button key={g.id} className={'group-tile '+(g.id===group.id?'active':'')} onClick={()=>selectGroup(g.id)}><div className="tile-graphic"><Illustration variant={g.id==='orbit'?'building':'city'}/><span className="tile-avatar-stack"><Stack ids={g.members} size={29}/></span></div><div className="tile-content"><div className="group-type"><LockKeyhole size={13}/> {g.type==='duo'?'ONE-ON-ONE':'PRIVATE CIRCLE'}</div><h3>{g.name}</h3><Stack ids={g.members} size={34}/><div className="tile-foot"><span>{g.members.length} members</span><span>Open circle <ArrowRight size={15}/></span></div></div></button>)}</div>
-          <div className="group-tools"><div><span className="eyebrow">YOUR INVITE CODE</span><h3>{group.code}</h3><p>Only people with your code can join once a shared backend is connected.</p></div><Button variant="outline" onClick={copyCode} icon={Copy}>Copy code</Button></div>
-          <div className="chat-section"><div className="section-header"><div><div className="eyebrow">GROUP CONVERSATION</div><h2>{group.name} chat<span className="accent-period">.</span></h2></div></div><Chat messages={groupChat} text={chatText} onText={setChatText} onSend={sendChat} currentName={db.profile.name}/></div>
-        </>}
-        {view==='gallery'&&<>
-          <div className="page-heading compact"><span className="eyebrow">THE GROUP GALLERY</span><h1>Show us<br/><em>what you made.</em></h1><p>Watch everyone's ideas come to life. Leave a note on a sketch, or vote during the evening window.</p></div>
-          <div className="gallery-summary"><div><span className="tag tag-accent">{phase==='voting'?'VOTING OPEN':phase==='reveal'?'REVEAL TIME':'DRAWING IN PROGRESS'}</span><h3>{theme.title}</h3><p>{group.name} · {members.length} artists</p></div><div className="gallery-countdown"><Clock3 size={20}/><span>{phase==='drawing'?'Voting begins in':'Next reveal in'}<b>{nextTime(now,phase==='drawing'?19:7)}</b></span></div></div>
-          <div className="section-header"><h2>Today's doodles<span className="accent-period">.</span></h2><span className="count-chip">{activeSketches.filter(a=>a.sample||a.image).length} / {members.length} in</span></div>
-          <div className="gallery-grid">{activeSketches.map((art,i)=><article key={art.id} className="gallery-tile">
-            <button className={'gallery-art tone-'+i} onClick={()=>art.image||art.sample?openSketch(art):art.id==='you'?startDraw():notify('Waiting for '+art.person.name+' to draw.')}>{art.image?<img src={art.image} alt={'Drawing by '+art.person.name}/>:art.sample?<Illustration variant={art.kind}/>:<div className="waiting-art"><Pencil size={30}/><span>{art.id==='you'?'Your canvas is waiting':'Not submitted yet'}</span></div>}
-              {(art.image||art.sample)&&<span className="gallery-overlay">View doodle <ArrowRight size={15}/></span>}</button>
-            <div className="gallery-info"><div className="gallery-identity"><Avatar id={art.id} size={37}/><div><strong>{art.id==='you'?db.profile.name:art.person.name}</strong><span>{art.role.label}</span></div></div>{phase==='voting'&&art.id!=='you'&&(art.image||art.sample)?<button className={'vote-button '+(vote===art.id?'voted':'')} onClick={()=>voteFor(art.id)}><Heart size={17} fill={vote===art.id?'currentColor':'none'}/>{vote===art.id?'Voted':'Vote'}</button>:<button className="round-icon" onClick={()=>openSketch(art)} disabled={!art.image&&!art.sample}><MessageCircle size={18}/></button>}</div>
-          </article>)}</div>
-          {phase==='drawing'&&<div className="centered-notice"><Clock3 size={18}/><span>Voting opens at 7 PM. You can preview the voting state using Prototype Mode.</span></div>}
-          {phase==='voting'&&<div className="centered-notice"><Heart size={18}/><span>One vote per person, per circle. Voting closes at 7 AM.</span></div>}
-          {phase==='reveal'&&<Reveal group={group} members={members} submission={savedSketch} theme={theme} onDownload={download} onShare={share}/>}
-        </>}
-        {view==='leaderboard'&&<>
-          <div className="page-heading compact"><span className="eyebrow">BRAGGING RIGHTS</span><h1>A little<br/><em>friendly rivalry.</em></h1><p>Who's been bringing the creative chaos? Points show up after the morning reveal.</p></div>
-          <div className="leader-top"><div><span className="eyebrow">THE ORBIT CLUB / ALL TIME</span><h2>Your circle's<br/>creative legends.</h2></div><Trophy size={68} strokeWidth={1.1}/></div>
-          <div className="podium">{ranking.slice(0,3).map((person,i)=><div key={person.id} className={'podium-card podium-'+i}><div className="rank-medal">{i===0?'01':i===1?'02':'03'}</div><Avatar id={person.id} size={65}/><strong>{person.id==='you'?db.profile.name:person.name}</strong><span>{person.score} pts</span></div>)}</div>
-          <div className="ranking-list"><div className="ranking-header"><span>RANKING</span><span>POINTS</span></div>{ranking.map((person,i)=><div key={person.id} className="rank-row"><span className="rank-index">{String(i+1).padStart(2,'0')}</span><Avatar id={person.id} size={44}/><div className="rank-name"><strong>{person.id==='you'?db.profile.name:person.name}</strong><span>{person.handle||'@artist'}</span></div><span className="rank-points">{person.score} <small>pts</small></span></div>)}</div>
-          <div className="centered-notice"><Info size={18}/><span>Scores are illustrative until accounts and a shared voting database are connected.</span></div>
-        </>}
-        {view==='profile'&&<>
-          <div className="page-heading compact"><span className="eyebrow">THE PERSON BEHIND THE PEN</span><h1>Your space.<br/><em>Your rules.</em></h1><p>Make this corner yours. It's a prototype, so settings are stored on this device.</p></div>
-          <div className="settings-card"><div className="settings-profile"><Avatar id="you" size={74}/><div><h3>{db.profile.name}</h3><p>Here for the doodles</p></div></div><label className="field-label" htmlFor="profile-name">Display name</label><div className="field-row"><input id="profile-name" className="text-input" maxLength="25" value={customName} onChange={e=>setCustomName(e.target.value)}/><Button onClick={()=>{update(d=>({...d,profile:{...d.profile,name:customName.trim()||'You'}}));notify('Name updated.');}}>Save</Button></div><div className="setting-row"><div><strong>Browser notifications</strong><p>Ask permission for 7 AM prompts and 7 PM voting alerts. Alerts only fire while this browser tab is open.</p></div><button className={'switch '+(db.profile.notifications?'on':'')} aria-label="Toggle browser notifications" aria-pressed={db.profile.notifications} onClick={toggleNotification}><i/></button></div><div className="setting-row"><div><strong>Preview information</strong><p>All data lives in this browser. Groups are not synced across devices and AI image stitching is not connected.</p></div><ShieldCheck size={23}/></div></div>
-          <div className="danger-card"><h3>Reset this preview</h3><p>Remove your doodles, messages, created circles, and votes from this browser.</p><button onClick={()=>setModal('reset')}>Reset all demo data <RotateCcw size={16}/></button></div>
-        </>}
-      </main>
-    </div>
-    <nav className="mobile-nav" aria-label="Main navigation">
-      {NAV.slice(0,2).map(item=><button key={item.id} className={view===item.id?'selected':''} onClick={()=>switchView(item.id)}><item.icon size={22} strokeWidth={view===item.id?2.4:1.85}/><span>{item.label==='My circles'?'Circles':item.label}</span></button>)}
-      <button className="nav-create" aria-label="Open drawing studio" onClick={startDraw}><span className="nav-create-icon"><Pencil size={22}/></span><span>Draw</span></button>
-      {NAV.slice(2).map(item=><button key={item.id} className={view===item.id?'selected':''} onClick={()=>switchView(item.id)}><item.icon size={22} strokeWidth={view===item.id?2.4:1.85}/><span>{item.label==='The gallery'?'Gallery':'Ranks'}</span></button>)}
-    </nav>
-    <button className="floating-chat" onClick={()=>setShowChat(true)} title="Open group chat"><MessageCircle size={22}/><span>Chat</span></button>
-    {showChat&&<div className="chat-drawer-wrap" onPointerDown={e=>{if(e.target===e.currentTarget)setShowChat(false);}}><section className="chat-drawer"><div className="drawer-head"><div><span className="eyebrow">YOUR CIRCLE</span><h2>{group.name}</h2></div><button className="icon-button" onClick={()=>setShowChat(false)}><X size={22}/></button></div><Chat messages={groupChat} text={chatText} onText={setChatText} onSend={sendChat} currentName={db.profile.name}/></section></div>}
-    {modal==='new'&&<Modal title="Start a circle" subtitle="The best things happen with your people." onClose={()=>setModal('')}>
-      <div className="modal-content"><div className="segmented">{[{id:'group',label:'Group circle'},{id:'duo',label:'One-on-one'}].map(t=><button key={t.id} className={newGroupType===t.id?'active':''} onClick={()=>{setNewGroupType(t.id);setChosen(t.id==='duo'?['maya']:['maya','jules','noah']);}}>{t.label}</button>)}</div>
-      <label className="field-label" htmlFor="circle-name">CIRCLE NAME</label><input className="text-input" id="circle-name" placeholder="e.g. The After Hours" maxLength="40" value={newGroupName} onChange={e=>setNewGroupName(e.target.value)}/>
-      <span className="field-label">INVITE YOUR FRIENDS</span><div className="friends-picker">{PEOPLE.filter(p=>p.id!=='you').map(p=><button key={p.id} className={'friend-choice '+(chosen.includes(p.id)?'chosen':'')} onClick={()=>setChosen(list=>newGroupType==='duo'?[p.id]:list.includes(p.id)?list.filter(x=>x!==p.id):[...list,p.id])}><Avatar id={p.id} size={36}/><span>{p.name}</span>{chosen.includes(p.id)?<CheckCircle2 size={20}/>:<Plus size={19}/>}</button>)}</div><div className="modal-foot"><p>Private by default. Invite codes are demo-only for now.</p><Button onClick={createGroup} icon={ArrowRight}>Create circle</Button></div></div>
-    </Modal>}
-    {modal==='join'&&<Modal title="Join a circle" subtitle="Got a code from a friend?" onClose={()=>setModal('')}><div className="modal-content"><label className="field-label" htmlFor="join-code">INVITE CODE</label><input className="text-input code-input" id="join-code" value={joinCode} maxLength="12" onChange={e=>setJoinCode(e.target.value.toUpperCase())} placeholder="ENTER CODE"/><div className="modal-foot"><p>Codes only work for circles created in this browser until a shared backend is added.</p><Button onClick={joinGroup} icon={ArrowRight}>Join circle</Button></div></div></Modal>}
-    {modal==='switch'&&<Modal title="Switch circles" subtitle="Pick who you're making things with." onClose={()=>setModal('')}><div className="modal-content circle-picker">{db.groups.map(g=><button key={g.id} className="circle-choice" onClick={()=>{selectGroup(g.id);setModal('');}}><div className="circle-badge"><Avatar id={g.members.find(x=>x!=='you')||'you'} size={37}/></div><div><strong>{g.name}</strong><span>{g.members.length} friends · {g.type==='duo'?'one-on-one':'group circle'}</span></div>{g.id===group.id?<CheckCircle2 size={20}/>:<ChevronRight size={20}/>}</button>)}<button className="circle-choice add-choice" onClick={()=>setModal('new')}><div className="circle-badge"><Plus size={21}/></div><strong>Create a new circle</strong></button></div></Modal>}
-    {modal==='invite'&&<Modal title="Invite your friends" subtitle={'Only people with the code can join '+group.name+'.'} onClose={()=>setModal('')}><div className="modal-content invite-box"><div className="invite-symbol"><UserRoundPlus size={46} strokeWidth={1.5}/></div><span className="eyebrow">YOUR PRIVATE CIRCLE CODE</span><strong>{group.code}</strong><Button onClick={copyCode} icon={Copy}>Copy invite code</Button><p>In this prototype codes work only in the current browser. Real invitations require a shared backend.</p></div></Modal>}
-    {modal==='notifications'&&<Modal title="Heads up" subtitle="Here's what is happening with your crew." onClose={()=>setModal('')}><div className="modal-content notification-list"><div className="notification-line"><div className="notification-symbol"><Pencil size={21}/></div><div><strong>Your daily prompt is ready</strong><p>{theme.title} · Drawing closes at 7 PM.</p></div></div><div className="notification-line"><div className="notification-symbol alt"><Heart size={21}/></div><div><strong>Vote on your favorites</strong><p>Voting runs from 7 PM to 7 AM every day.</p></div></div><Button variant="outline" onClick={()=>{setModal('');switchView('gallery');}}>Open today's gallery <ArrowRight size={16}/></Button></div></Modal>}
-    {modal==='sketch'&&selectedSketch&&<Modal large title={selectedSketch.person.name+'’s sketch'} subtitle={selectedSketch.role.label} onClose={()=>setModal('')}>
-      <div className="sketch-modal-layout"><div className="sketch-modal-art">{selectedSketch.image?<img src={selectedSketch.image} alt="Selected doodle"/>:<Illustration variant={selectedSketch.kind}/>}</div><div className="sketch-comments"><div className="comments-heading"><MessageCircle size={18}/> Comments</div><div className="comment-list">{(db.comments[roundKey+':'+selectedSketch.id]||[]).length===0?<p className="no-comments">No comments yet. Be the first to say something nice.</p>:(db.comments[roundKey+':'+selectedSketch.id]||[]).map(c=><div className="comment" key={c.id}><Avatar id={c.by} size={29}/><div><strong>{c.by==='you'?db.profile.name:getPerson(c.by).name}</strong><p>{c.text}</p></div></div>)}</div><form className="comment-form" onSubmit={e=>{e.preventDefault();sendComment();}}><input className="text-input" value={commentText} onChange={e=>setCommentText(e.target.value)} maxLength={200} placeholder="Leave a comment..."/><button aria-label="Send comment" type="submit"><Send size={19}/></button></form>{selectedSketch.id!=='you'&&phase==='voting'&&<Button variant={vote===selectedSketch.id?'white':'primary'} onClick={()=>voteFor(selectedSketch.id)} icon={Heart}>{vote===selectedSketch.id?'Voted for this':'Vote for this'}</Button>}</div></div>
-    </Modal>}
-    {modal==='reset'&&<Modal title="Reset your preview?" subtitle="This can't be undone." onClose={()=>setModal('')}><div className="modal-content"><p className="reset-copy">Your local sketches, circles, votes, chat, and settings will be removed from this browser.</p><div className="modal-foot"><Button variant="outline" onClick={()=>setModal('')}>Cancel</Button><Button onClick={()=>{setDb(INITIAL);setModal('');switchView('home');notify('Preview reset.');}}>Reset everything</Button></div></div></Modal>}
-    {toastMessage&&<div role="status" className="toast"><Info size={17}/>{toastMessage}</div>}
-  </div>;
-}
-function Chat({messages,text,onText,onSend,currentName}) {
-  const end=useRef(null);
-  useEffect(()=>{end.current?.scrollIntoView({behavior:'smooth',block:'nearest'});},[messages.length]);
-  return <div className="chat-body"><div className="chat-messages">{messages.length===0&&<div className="chat-empty"><MessageCircle size={32}/><strong>Start the conversation</strong><span>Your sketches aren't the only thing worth sharing.</span></div>}{messages.map(m=><div className={'chat-line '+(m.by==='you'?'me':'')} key={m.id}>{m.by!=='you'&&<Avatar id={m.by} size={31}/>}<div><div className="bubble-author">{m.by==='you'?currentName:getPerson(m.by).name} <span>{m.at}</span></div><div className="chat-bubble">{m.text}</div></div></div>)}<div ref={end}/></div><form className="chat-compose" onSubmit={e=>{e.preventDefault();onSend();}}><input value={text} maxLength="400" onChange={e=>onText(e.target.value)} aria-label="Message" placeholder="Say something..."/><button type="submit" disabled={!text.trim()} aria-label="Send message"><Send size={19}/></button></form></div>;
-}
-export default App;
+export default Doodl;

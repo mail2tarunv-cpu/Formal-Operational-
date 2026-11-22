@@ -1,54 +1,62 @@
-# Doodl — daily collaborative sketching prototype
+# Doodl — full multiplayer app code
 
-**Branch:** Tarun  
-**Stack:** React + Vite + lucide-react  
-**Vercel:** https://formalop-git-tarun-mail2tarunv-cpus-projects.vercel.app
+**Branch:** Tarun (do not merge into main without Madison and Esha's review)
 
-A high-fidelity mobile-first prototype for our Pratt studio project for ages 14–18. The group has selected a concept: friends get a shared daily theme, each member draws one assigned part, and the group interacts through chats, comments, voting, leaderboards and a next-day artwork reveal.
+Doodl is a private, mobile-first creative drawing game for ages 14–18.
+
+This branch replaces the old browser-only demo with code for a real multi-user app. **Do not call the deployment finished until a dedicated Supabase project has been provisioned, the migration has been applied, live credentials are connected, and the security/UX checks below pass.** The project currently has no backend connection.
+
+## Built into the app
+
+- Passwordless email sign-in (email link or OTP) and personal profile with uploaded profile photos.
+- Create a private group (up to 8) or duo (2); join using a high-entropy invitation code.
+- Unique per-member part prompts from a daily shared theme. Groups have a saved timezone.
+- 7 AM–7 PM drawing time, 7 PM–next 7 AM voting, then the previous day's reveal.
+- Pointer/touch canvas: pen, marker, eraser, colors, brush size, undo/redo, clear, pause/resume 5/7/10-minute sessions, draft recovery, PNG upload.
+- Private group chats, comment threads on artworks and single vote per member enforced by Postgres.
+- Real votes → leaderboard: 10 points per received vote after a round has finished.
+- Previous-day collage export without AI generation, requiring every member to approve group sharing.
+- Report content, block members' messages, leave or delete circles; private artwork files with signed URLs.
+- Mobile-width UI and installable manifest.
+
+## Connecting the backend (NOT YET DONE)
+
+1. Provision a **new dedicated Supabase project** for Doodl. Do not use unrelated existing databases.
+2. Apply [database migration](supabase/migrations/20261122_doodl_initial.sql) to that project.
+3. In Vercel for this branch's Preview environment, set:
+   - \`VITE_SUPABASE_URL\` = your new Supabase project URL
+   - \`VITE_SUPABASE_PUBLISHABLE_KEY\` = its **publishable** API key (never secret/service role)
+4. In Supabase Auth URL settings, set the site URL and allow the [Tarun branch preview](https://formalop-git-tarun-mail2tarunv-cpus-projects.vercel.app) as an auth redirect.
+5. Redeploy; then test two *different browsers/accounts* to verify invitations, messages, voting and private file access.
+6. Review RLS, storage policies, SQL functions, email deliverability and age-appropriate moderation before letting teens use the app.
+
+Required \`src/lib/client.js\` variables are exposed in frontend by design, so use only a Supabase **publishable** key, never service role. Credentials are intentionally absent until a dedicated backend is selected.
 
 ## Run locally
 
-    git clone https://github.com/mail2tarunv-cpu/Formal-Operational-.git
-    cd Formal-Operational-
-    git switch Tarun
-    npm install
-    npm run dev
+\`\`\`bash
+git clone https://github.com/mail2tarunv-cpu/Formal-Operational-.git
+cd Formal-Operational-
+git switch Tarun
+npm install
+cp .env.example .env.local
+# supply your dedicated Supabase publishable credentials
+npm run dev
+\`\`\`
 
-Run \`npm run build\` to check the production bundle.
+Production build: \`npm run build\`.
 
-## Screens & interactions
+## Known incomplete parts / release blockers
 
-- **Home:** premium dark creative feed; daily theme, group members, private part assignment, progression.
-- **Circles:** create a private group or one-on-one, select sample friends, generate a shareable invite code, switch groups.
-- **Drawing studio:** pointer/touch canvas, pen, highlighter, eraser, seven colors, brush size, undo, redo, clear, prompt reminder, pause/resume countdown, submit and keep local draft.
-- **Gallery:** view group submissions, comments on each drawing, and votes during 7 PM–7 AM.
-- **Leaderboard:** ranked members and illustration points.
-- **Chat:** group messaging inside the app.
-- **Reveal:** a composed 1080×1080 picture with export and native share/download fallback.
-- **Notifications:** optional browser-permission prompt, foreground-only alerts at the 7 AM / 7 PM boundaries.
-- **Prototype Mode:** lets reviewers preview Draw/Vote/Reveal screens without waiting for the real-time schedule.
+- **No connected backend yet**, so real sign-in/circles/etc. cannot be exercised on the current Vercel preview.
+- **AI image stitching** is excluded intentionally; users get a deterministic collage instead.
+- **Scheduled background push notifications** are not configured; the UI accurately explains this.
+- Moderation dashboard, administrator review process, legal/parental age policy, account deletion and data retention require decisions and implementation before a real teen launch.
+- Email OTP deliverability, multi-account privacy, time-zone / DST boundary tests, accessibility and mobile browser testing still need live verification.
+- Supabase Free project limits and third-party usage costs need confirmation before provisioning.
 
-## Important: this is a single-browser prototype
+## Workflow
 
-Data is saved in **localStorage/sessionStorage on the current device**. The preloaded friends, drawings, points and messages are sample data. **Real-time multi-user features do not work across browsers**, and invite codes do not provision remote users. That requires authentication, a shared database, role-specific membership, server-validated votes, message sync, privacy permissions and storage.
-
-The final composition is a **client-side illustration/layout preview, not AI-generated stitching**. Connecting an image generation service is a separate task and must require approval for provider credentials/costs. Never describe these placeholder features as live.
-
-Daily windows are interpreted in the user's **browser-local time zone**. Actual push notifications and reliable 7 AM background jobs require a push service + scheduler. Browser alerts here only work while the page is open.
-
-## Team workflow
-
-- Push work only to \`Tarun\`.
-- Do not modify \`main\`, \`Madison\`, or \`Esha\`.
-- Open a Pull Request and ask both other teammates to review before merging.
-- Read \`AGENTS.md\` before continuing with an AI coding agent.
-
-## Design refinement
-
-The prototype is now icon-led and photography-first. Sample people are represented by portrait photos from Unsplash, and the gallery's demo artwork uses photo assets rather than generated vector scenes. These are **stock placeholders, not verified images of the named participants or their submitted drawings**. Remote Unsplash URLs may need bundling locally before production.
-
-Screen pattern references and design decisions are documented in `DESIGN_REVIEW.md`.
-
-- Avoid decorative random stars, emoji, SVG scenery, and unnecessary UI chrome.
-- Use the real user's submitted canvas as the export source; don't invent AI-blended scenes.
-- The app remains a single-browser demo: group creation, chat, votes and scores are not shared across users.
+- Push only to \`Tarun\`; Madison and Esha continue independently.
+- Work from \`AGENTS.md\` and report real versus unverified features accurately.
+- Never put private group drawings or member data in public storage buckets.
