@@ -28,3 +28,12 @@ Mobile-first private drawing game for teens aged 14–18. Each day a private cir
 
 ## Next priority
 Create/connect a dedicated backend with user authorization, apply migration and RLS tests, configure auth links and build live notifications with service worker/VAPID/cron. Test multiple accounts on different devices before calling the app complete. The AI stitching aspect stays out of scope.
+
+## Web push
+- \`src/lib/push.js\`: opt-in, browser push subscription, per signed-in user.
+- \`public/sw.js\`: notification display and tap handling.
+- \`api/notify.js\`: server-only push sender protected by CRON_SECRET. NEVER
+  expose the service-role key, VAPID private key, or cron secret in the browser.
+- A trusted scheduler is not configured. Do not claim background reminders are live.
+- Vercel Hobby cannot schedule a frequent cron. Use a reviewed external or
+  Supabase scheduler after provisioning; do not silently upgrade paid plans.

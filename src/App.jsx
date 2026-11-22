@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Bell, Check, CheckCircle2, ChevronDown, ChevronR
  Clock3, CalendarDays, RotateCw, Play, Palette, CheckCheck
 } from 'lucide-react';
 import Canvas from './components/Canvas.jsx';
+import {enablePush,disablePush} from './lib/push.js';
 import {supabase,backendConfigured,groupDate,THEMES,explainError,check} from './lib/client.js';
 import {
  readProfile,updateProfile,allProfiles,uploadAvatar,readCircles,createCircle,joinCircle,leaveCircle,
@@ -102,6 +103,7 @@ function Doodl() {
  const[displayName,setDisplayName]=useState(''),[now,setNow]=useState(new Date()),[avatarBusy,setAvatarBusy]=useState(false);
  const[reportTarget,setReportTarget]=useState(null),[reportReason,setReportReason]=useState('');
  const[loading,setLoading]=useState(false),[profileLoading,setProfileLoading]=useState(false);
+ const[pushEnabled,setPushEnabled]=useState(false);
  const group=groups.find(g=>g.id===groupId)||null;
  const theme=board?THEMES[board.round.theme_index]:THEMES[0];
  const mine=board?.parts.find(p=>p.user_id===user?.id);
@@ -118,6 +120,8 @@ function Doodl() {
   return()=>subscription.unsubscribe();
  },[]);
  useEffect(()=>{const interval=setInterval(()=>setNow(new Date()),30000);return()=>clearInterval(interval)},[]);
+ useEffect(()=>{if('serviceWorker' in navigator)navigator.serviceWorker.getRegistration('/').then(reg=>reg?.pushManager?.getSubscription()).then(sub=>setPushEnabled(Boolean(sub))).catch(()=>{});},[]);
+ useEffect(()=>{if(screen==='draw'&&board&&board.phase!=='drawing')setScreen('gallery');},[screen,board?.phase]);
  const refreshCircles=useCallback(async()=>{
   if(!user)return;
   const data=await readCircles(user.id);
@@ -227,6 +231,13 @@ function Doodl() {
   try{await blockUser(user.id,userId);await refreshGroup(true);setModal('');alert('Person blocked.')}
   catch(e){handleError(e)}
  };
+ const togglePush=async()=>{
+  setBusy(true);
+  try{
+   if(pushEnabled){await disablePush(user.id);setPushEnabled(false);alert('Reminders disabled on this device.');}
+   else{await enablePush(user.id,group?.timezone);setPushEnabled(true);alert('Daily notifications enabled on this device.');}
+  }catch(e){handleError(e)}finally{setBusy(false)}
+ };
  const exitCircle=async()=>{
   if(!window.confirm(group?.owner_id===user.id?'Delete this circle for everyone?':'Leave this circle?'))return;
   try{await leaveCircle(group.id,group.owner_id===user.id);setModal('');setScreen('circles');await refreshCircles();alert('Circle updated.')}
@@ -310,7 +321,7 @@ function Doodl() {
     <label className="field-label" htmlFor="displayname">DISPLAY NAME</label><input className="field-input" id="displayname" maxLength={32} value={displayName} onChange={e=>setDisplayName(e.target.value)} placeholder="Your name"/><Btn onClick={saveProfile} disabled={busy||profileLoading} icon={Check}>Save profile</Btn>
     <div className="settings-section"><div className="section-heading"><h2>Privacy and account</h2></div>
      <div className="setting-item"><Shield size={19}/><div><strong>Private circles</strong><small>Your content is only available to members of your circles.</small></div></div>
-     <div className="setting-item"><Bell size={19}/><div><strong>Notifications</strong><small>Background push reminders are not yet configured. Turn on browser alerts only when this page is open.</small></div><button className="text-button" onClick={async()=>{if(!('Notification'in window))return alert('Notifications unavailable here.');const p=await Notification.requestPermission();alert(p==='granted'?'Permission granted. Background scheduling still needs a push service.':'Permission not granted.')}}>Enable</button></div>
+     <div className="setting-item"><Bell size={19}/><div><strong>Daily notifications</strong><small>Get 7 AM drawing and 7 PM voting reminders when the push server is configured.</small></div><button className="text-button" disabled={busy||!import.meta.env.VITE_VAPID_PUBLIC_KEY} onClick={togglePush}>{!import.meta.env.VITE_VAPID_PUBLIC_KEY?'Not set up':pushEnabled?'Disable':'Enable'}</button></div>
      <button className="setting-item setting-button" onClick={async()=>{await supabase.auth.signOut();setScreen('home')}}><LogOut size={19}/><div><strong>Sign out</strong></div><ArrowRight size={17}/></button>
     </div><p className="helper-note">Doodl does not provide public user discovery. Never share private group codes publicly.</p>
    </div>}
@@ -336,7 +347,7 @@ function Doodl() {
     <form className="comment-compose" onSubmit={sendComment}><input value={comment} onChange={e=>setComment(e.target.value)} maxLength={350} placeholder="Leave a comment..." aria-label="Comment"/><button type="submit" disabled={!comment.trim()}><Send size={19}/></button></form>
     {phase==='voting'&&selectedDrawing.user_id!==user.id&&<Btn icon={Heart} onClick={()=>{vote(selectedDrawing);setModal('')}}>{board.myVote===selectedDrawing.id?'Change vote':'Vote for this drawing'}</Btn>}
    </Modal>}
-  {modal==='notifications'&&<Modal title="Daily reminders" subtitle="One prompt every day at 7 AM" onClose={()=>setModal('')}><div className="notification-info"><CalendarDays size={26}/><h3>Make time for something creative.</h3><p>Draw between 7 AM and 7 PM, vote overnight, and see the reveal the next morning. Background push is not yet connected.</p></div><Btn secondary onClick={()=>{setModal('');switchTab('gallery')}} icon={Images}>Open the gallery</Btn></Modal>}
+  {modal==='notifications'&&<Modal title="Daily reminders" subtitle="One prompt every day at 7 AM" onClose={()=>setModal('')}><div className="notification-info"><CalendarDays size={26}/><h3>Make time for something creative.</h3><p>Draw between 7 AM and 7 PM, vote overnight, and see the reveal the next morning. Turn on background reminders in Profile once your circle's push service is connected.</p></div><Btn secondary onClick={()=>{setModal('');switchTab('gallery')}} icon={Images}>Open the gallery</Btn></Modal>}
   {(modal==='report'||modal==='report-art')&&<Modal title="Report content" subtitle="Help us keep circles safer." onClose={()=>setModal('')}><label className="field-label" htmlFor="reason">WHAT HAPPENED?</label><textarea id="reason" className="field-input" rows={4} maxLength={500} value={reportReason} onChange={e=>setReportReason(e.target.value)} placeholder="Tell us what is wrong…"/><Btn icon={Flag} onClick={async()=>{if(modal==='report-art'){try{await reportContent(user.id,reportTarget,'drawing',reportReason);setModal('');alert('Report submitted.')}catch(e){handleError(e)}}else submitReport()}}>Submit report</Btn>{modal==='report'&&<button className="sheet-link" onClick={()=>block(reportTarget)}><Ban size={17}/> Block this person</button>}</Modal>}
   {toast&&<div className="global-notice" role="status">{toast}</div>}
  </div>;

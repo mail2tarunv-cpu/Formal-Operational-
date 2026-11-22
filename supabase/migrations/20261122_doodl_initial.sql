@@ -407,3 +407,23 @@ create policy share_consent_update on public.share_consents for update to authen
 using(user_id=auth.uid()) with check(user_id=auth.uid());
 grant select,insert,update on public.share_consents to authenticated;
 alter publication supabase_realtime add table public.share_consents;
+
+
+-- Per-device, opt-in web push subscriptions, never exposed to other users.
+create table public.push_subscriptions(
+ endpoint text primary key check(char_length(endpoint) between 10 and 2048),
+ user_id uuid not null references auth.users(id) on delete cascade,
+ p256dh text not null,
+ auth text not null,
+ timezone text not null default 'America/New_York',
+ last_sent_slot text,
+ created_at timestamptz not null default now()
+);
+create index push_subscriptions_user_idx on public.push_subscriptions(user_id);
+alter table public.push_subscriptions enable row level security;
+create policy push_read_self on public.push_subscriptions for select to authenticated using(user_id=auth.uid());
+create policy push_insert_self on public.push_subscriptions for insert to authenticated with check(user_id=auth.uid());
+create policy push_update_self on public.push_subscriptions for update to authenticated
+using(user_id=auth.uid()) with check(user_id=auth.uid());
+create policy push_delete_self on public.push_subscriptions for delete to authenticated using(user_id=auth.uid());
+grant select,insert,update,delete on public.push_subscriptions to authenticated;

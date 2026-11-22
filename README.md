@@ -60,3 +60,29 @@ Production build: \`npm run build\`.
 - Push only to \`Tarun\`; Madison and Esha continue independently.
 - Work from \`AGENTS.md\` and report real versus unverified features accurately.
 - Never put private group drawings or member data in public storage buckets.
+
+
+## Push notification infrastructure (prepared, NOT ACTIVE)
+
+The code now includes a service worker (\`public/sw.js\`), browser push registration,
+a private \`push_subscriptions\` table and an authenticated scheduler endpoint
+(\`api/notify.js\`). It is safe to leave unconfigured: the UI disables its
+notification control until credentials exist.
+
+To make push live after provisioning the **dedicated Doodl** database:
+- Browser build: \`VITE_VAPID_PUBLIC_KEY\`
+- Vercel **server-side only**: \`SUPABASE_URL\`, \`SUPABASE_SERVICE_ROLE_KEY\`,
+  \`VAPID_PUBLIC_KEY\`, \`VAPID_PRIVATE_KEY\`, \`VAPID_SUBJECT\` (mailto:),
+  \`CRON_SECRET\`
+- Generate a matching VAPID keypair once, never commit private keys.
+- Arrange a trusted 5–10 minute scheduler to call \`GET /api/notify\` with
+  \`Authorization: Bearer <CRON_SECRET>\`, then test on physical devices.
+- The existing Vercel account is **Hobby**. Do not add a frequent
+  \`vercel.json\` cron schedule: Hobby cron frequency is limited to once per
+  day, so 7 AM and 7 PM local-time notifications require another scheduler.
+- On iOS, web push requires the PWA to be added to the Home Screen (where
+  browser version / OS support allows). Test on a real iPhone.
+
+The app cannot honestly be marked production-ready for teenagers without live
+security tests, age-appropriate policies, a monitored report queue, and an
+account deletion/data retention process.
