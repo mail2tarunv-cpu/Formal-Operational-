@@ -52,8 +52,8 @@ function Auth({onError}){
  };
  return <main className="auth-shell">
   <div className="auth-top"><span className="wordmark">doodl<span>.</span></span><span className="auth-private"><LockKeyhole size={15}/> Private by default</span></div>
-  <div className="auth-art" aria-hidden="true"><div className="auth-pattern"><Pencil size={51} strokeWidth={1.2}/></div></div>
-  <div className="auth-content"><span className="eyebrow">GOOD IDEAS ARE BETTER TOGETHER</span><h1>Draw with<br/>your people.</h1><p>One theme. Different ideas. One circle of friends. A new doodle every day.</p>
+  <div className="auth-art" aria-hidden="true"><div className="auth-art-cover"><span>DOODL / 001</span><strong>Imagine<br/>something<br/>new.</strong></div></div>
+  <div className="auth-content"><span className="eyebrow">JUST YOU AND YOUR PEOPLE</span><h1>Draw with<br/>your people.</h1><p>One theme. Different ideas. One circle of friends. A new doodle every day.</p>
    {sent?<form onSubmit={verify} className="auth-form"><label htmlFor="otp">Enter the code from your email</label><input id="otp" inputMode="numeric" autoComplete="one-time-code" placeholder="Email code" value={token} onChange={e=>setToken(e.target.value)} minLength={6} maxLength={12} required/><Btn type="submit" disabled={busy} icon={ArrowRight}>{busy?'Checking…':'Verify code'}</Btn><button type="button" className="text-button" onClick={()=>setSent(false)}>Use another email</button></form>
    :<form className="auth-form" onSubmit={send}><label htmlFor="email">Your email</label><input id="email" type="email" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/><Btn type="submit" disabled={busy} icon={ArrowRight}>{busy?'Sending…':'Continue with email'}</Btn></form>}
    <p className="auth-privacy"><Shield size={15}/> No public profiles or friend search. Join circles with an invite code.</p>
@@ -256,14 +256,14 @@ function Doodl() {
    {error&&<div className="inline-error" role="alert"><span>{error}</span><button onClick={()=>setError('')} aria-label="Dismiss error"><X size={17}/></button></div>}
    {screen==='home'&&<div className="screen home-screen">
     <div className="eyebrow">{new Intl.DateTimeFormat('en-US',{weekday:'long',month:'long',day:'numeric'}).format(now).toUpperCase()}</div>
-    <h1>Draw something<br/><em>together.</em></h1>
-    {!groups.length?<div className="empty-group"><UsersRound size={40}/><h2>Start with your people.</h2><p>Create a circle or join one with an invite code. Only people you invite can join.</p><Btn icon={Plus} onClick={()=>setModal('create')}>Create a circle</Btn><Btn secondary onClick={()=>setModal('join')}>I have an invite code</Btn></div>
+    <h1>Good things<br/><em>start small.</em></h1>
+    {!groups.length?<div className="empty-group"><UsersRound size={40}/><h2>Make something together.</h2><p>One prompt a day. Your favorite people. Nothing public.</p><Btn icon={Plus} onClick={()=>setModal('create')}>Create a circle</Btn><Btn secondary onClick={()=>setModal('join')}>I have an invite code</Btn></div>
     :<>
      <div className="story-rail"><button className="story" onClick={()=>setModal('create')}><span className="story-icon"><Plus size={24}/></span><small>New circle</small></button>
       {groups.map(g=><button key={g.id} className={'story '+(g.id===group?.id?'is-current':'')} onClick={()=>setGroupId(g.id)}><span className="story-icon circle-story"><UsersRound size={24}/></span><small>{g.name}</small></button>)}</div>
      <div className="overline-row"><span><CalendarDays size={16}/> TODAY'S DROP</span><button onClick={()=>setModal('switch')}>{group?.name}<ChevronDown size={16}/></button></div>
      {loading?<Waiting/>:board&&<div className="challenge-poster">
-      <div className="poster-image"><span className="poster-watermark"><Palette size={90} strokeWidth={.8}/></span><div><span>{theme.category}</span><h2>{theme.name}</h2></div></div>
+      <div className={"poster-image theme-"+board.round.theme_index} style={board.submissions.find(s=>s.url)?.url?{backgroundImage:"linear-gradient(0deg,rgba(8,8,8,.94),rgba(8,8,8,.1) 90%),url("+board.submissions.find(s=>s.url).url+")"}:undefined}><div><span>THE DAILY DROP · {theme.category}</span><h2>{theme.name}</h2></div></div>
       <div className="challenge-details"><div className="status-row"><span className="phase-tag"><span/>{phase==='drawing'?'DRAWING OPEN':phase==='voting'?'VOTING OPEN':'ROUND COMPLETE'}</span><span>7 AM – 7 PM / {group?.timezone?.split('/').at(-1).replaceAll('_',' ')}</span></div>
        {phase==='drawing'?<><h3>Your part: {prompt.label}</h3><p>{prompt.description}</p><Btn icon={Pencil} onClick={()=>switchTab('draw')}>{mySubmission?'Redo your drawing':'Start drawing'}</Btn></>
        :phase==='voting'?<><h3>Time to vote.</h3><p>Everyone's doodles are in. Choose your favorite before 7 AM tomorrow.</p><Btn icon={Heart} onClick={()=>switchTab('gallery')}>See today's drawings</Btn></>
@@ -277,7 +277,7 @@ function Doodl() {
     </>}
    </div>}
    {screen==='circles'&&<div className="screen">
-    <div className="eyebrow">YOUR PEOPLE</div><h1>My circles<span>.</span></h1><p className="screen-subtitle">A private space for you and your friends. No public search.</p>
+    <div className="eyebrow">YOUR PRIVATE ROOMS</div><h1>My circles<span>.</span></h1><p className="screen-subtitle">A private space for you and your friends. No public search.</p>
     <div className="top-pair"><Btn onClick={()=>setModal('create')} icon={Plus}>Create</Btn><Btn secondary onClick={()=>setModal('join')} icon={UserRoundPlus}>Join with code</Btn></div>
     <div className="list-section-label">YOUR CIRCLES / {groups.length}</div>
     {groups.length?<div className="circle-list">{groups.map(g=><button className={'circle-row '+(g.id===group?.id?'selected':'')} key={g.id} onClick={()=>{setGroupId(g.id);switchTab('home')}}><span className="circle-icon"><UsersRound size={24}/></span><span><strong>{g.name}</strong><small>{g.player_count||3} players · Private</small></span><ChevronRight size={18}/></button>)}</div>
@@ -288,7 +288,7 @@ function Doodl() {
     <button className="danger-link" onClick={exitCircle}><Trash2 size={17}/>{group.owner_id===user.id?'Delete circle':'Leave circle'}</button></>}
    </div>}
    {screen==='gallery'&&<div className="screen">
-    <div className="eyebrow">FRIEND ARTWORK</div><h1>The gallery<span>.</span></h1><p className="screen-subtitle">What everyone made from today's theme.</p>
+    <div className="eyebrow">THE COLLECTION</div><h1>The gallery<span>.</span></h1><p className="screen-subtitle">What everyone made from today's theme.</p>
     {!group?<div className="empty-small"><Images size={33}/><p>Join a circle to see drawings.</p></div>:loading?<Waiting/>:board&&<>
      <div className="gallery-period"><div><span className="phase-tag"><span/>{phase==='drawing'?'DRAWING':phase==='voting'?'VOTING':'REVEALED'}</span><h3>{theme.name}</h3><p>{board.submissions.length} / {members.length} drawings submitted</p></div><Clock3 size={24}/></div>
      {board.submissions.length===0?<div className="empty-small"><Pencil size={32}/><h3>No drawings yet.</h3><p>Be the first person to make something for this round.</p>{phase==='drawing'&&<Btn icon={Pencil} onClick={()=>switchTab('draw')}>Start drawing</Btn>}</div>
@@ -299,7 +299,7 @@ function Doodl() {
      </article>)}</div>}
      {phase==='drawing'&&<p className="helper-note"><Clock3 size={16}/> Voting opens at 7 PM in your circle's timezone.</p>}
      {phase==='voting'&&<p className="helper-note"><Heart size={16}/> One vote per member. You can change your vote until 7 AM.</p>}
-     {phase==='revealed'&&<div className="gallery-export"><h3>Your group's artwork</h3><p>Export all submitted drawings together as a shareable collage. AI blending will be added later. Each artist must approve sharing.</p><div className="consent-status"><Shield size={16}/>{board.consents?.filter(c=>c.approved).length||0} / {members.length} artists approved sharing</div><button className="consent-toggle" onClick={()=>setSharing({...board.round,consents:board.consents})}>{board.consents?.some(c=>c.user_id===user.id&&c.approved)?<CheckCircle2 size={19}/>:<Shield size={19}/>} {board.consents?.some(c=>c.user_id===user.id&&c.approved)?'Withdraw permission':'Approve group sharing'}</button><Btn icon={Download} onClick={()=>exportArt({...board.round,submissions:board.submissions,consents:board.consents})} disabled={busy||((board.consents?.filter(c=>c.approved).length||0)<members.length)}>Save or share</Btn></div>}
+     {phase==='revealed'&&<div className="gallery-export"><h3>Your group's artwork</h3><p>A collage of your circle’s drawings. Everyone must approve before it can be shared.</p><div className="consent-status"><Shield size={16}/>{board.consents?.filter(c=>c.approved).length||0} / {members.length} artists approved sharing</div><button className="consent-toggle" onClick={()=>setSharing({...board.round,consents:board.consents})}>{board.consents?.some(c=>c.user_id===user.id&&c.approved)?<CheckCircle2 size={19}/>:<Shield size={19}/>} {board.consents?.some(c=>c.user_id===user.id&&c.approved)?'Withdraw permission':'Approve group sharing'}</button><Btn icon={Download} onClick={()=>exportArt({...board.round,submissions:board.submissions,consents:board.consents})} disabled={busy||((board.consents?.filter(c=>c.approved).length||0)<members.length)}>Save or share</Btn></div>}
      {previous&&phase!=='revealed'&&<div className="gallery-export"><div className="eyebrow">PREVIOUS ROUND</div><h3>{THEMES[previous.theme_index].name}</h3><p>{previous.submissions.length} submitted drawings · {previous.consents?.filter(c=>c.approved).length||0} / {members.length} sharing approvals</p><button className="consent-toggle" onClick={()=>setSharing(previous)}>{previous.consents?.some(c=>c.user_id===user.id&&c.approved)?'Withdraw sharing permission':'Approve sharing'}</button><Btn secondary icon={Share2} onClick={()=>exportArt(previous)} disabled={busy||!previous.submissions.length||((previous.consents?.filter(c=>c.approved).length||0)<members.length)}>Share last round</Btn></div>}
     </>}
    </div>}
@@ -310,7 +310,7 @@ function Doodl() {
     <form className="message-compose" onSubmit={send}><input value={message} onChange={e=>setMessage(e.target.value)} maxLength={800} placeholder="Message your circle..." aria-label="Message"/><button type="submit" aria-label="Send" disabled={!message.trim()}><Send size={20}/></button></form></>}
    </div>}
    {screen==='ranks'&&<div className="screen">
-    <div className="eyebrow">CREATIVE BRAGGING RIGHTS</div><h1>Leaderboard<span>.</span></h1><p className="screen-subtitle">Points are awarded when a voting round finishes.</p>
+    <div className="eyebrow">THE STANDINGS</div><h1>Leaderboard<span>.</span></h1><p className="screen-subtitle">Points are awarded when a voting round finishes.</p>
     {group?<><div className="leader-banner"><Trophy size={29}/><div><strong>{group.name}</strong><small>10 points for every vote received</small></div></div>
      {scores.length?<div className="leader-list">{scores.map((rank,i)=><div key={rank.user_id} className="leader-row"><span className="leader-position">{String(i+1).padStart(2,'0')}</span><Avatar profile={people[rank.user_id]} size={43}/><span className="leader-name">{people[rank.user_id]?.display_name||'Artist'}{rank.user_id===user.id?' (you)':''}</span><strong>{rank.points} <small>pts</small></strong></div>)}</div>:<div className="empty-small"><Trophy size={35}/><p>Scores appear here after voting closes.</p></div>}</>:
      <div className="empty-small"><Trophy size={35}/><p>Join a circle to start earning points.</p></div>}
