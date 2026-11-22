@@ -88,7 +88,7 @@ function getDayKey(date) {
 }
 function getTheme(date) {
   const day = Number(getDayKey(date).replaceAll('-', ''));
-  return THEMES[day % THEMES.length];
+  return THEMES[(day + 2) % THEMES.length];
 }
 function getPerson(id) {
   return PEOPLE.find((p) => p.id === id) || { id, name: id, initials: id.slice(0, 2).toUpperCase(), color: '#d5ff78' };
@@ -360,11 +360,18 @@ function App() {
   const theme=getTheme(now);
   const phase=demo==='live'?getRealPhase(now):demo;
   const prompt=theme.prompts[Math.max(0,members.indexOf('you'))%theme.prompts.length];
-  const savedSketch=db.submissions[group.id]?.you;
+  const dayKey=getDayKey(now);
+  const roundKey=group.id+'@'+dayKey;
+  const yesterday=new Date(now);yesterday.setDate(yesterday.getDate()-1);
+  const previousKey=group.id+'@'+getDayKey(new Date(yesterday.getFullYear(),yesterday.getMonth(),yesterday.getDate(),12));
+  const previousSketch=db.submissions[previousKey]?.you;
+  const previousTheme=getTheme(new Date(yesterday.getFullYear(),yesterday.getMonth(),yesterday.getDate(),12));
+  const savedSketch=db.submissions[roundKey]?.you;
   const peopleInGroup=members.map(getPerson);
-  const vote=db.votes[group.id];
+  const vote=db.votes[roundKey];
   const userScores={you:74,maya:124,jules:106,noah:92,ava:83};
-  if (vote) userScores[vote]=(userScores[vote]||0)+10;
+  const revealedVote=db.votes[previousKey];
+  if (revealedVote) userScores[revealedVote]=(userScores[revealedVote]||0)+10;
   const ranking=peopleInGroup.map(p=>({...p,score:userScores[p.id]||0})).sort((a,b)=>b.score-a.score);
   const activeSketches=members.map((id,i)=>({id,person:getPerson(id),role:theme.prompts[i%theme.prompts.length],image:id==='you'?savedSketch:null,kind:id==='maya'?'sky':id==='jules'?'locals':id==='noah'?'transport':id==='ava'?'city':'city',sample:id!=='you'&&group.demo}));
   useEffect(()=>{try{localStorage.setItem(KEY,JSON.stringify(db));}catch(_){}},[db]);
@@ -407,13 +414,13 @@ function App() {
   };
   const startDraw=()=>{setSeconds(s=>s||420);setPaused(false);switchView('draw');setPaused(false);};
   const submitDrawing=(dataUrl)=>{
-    update(d=>({...d,submissions:{...d.submissions,[group.id]:{...(d.submissions[group.id]||{}),you:dataUrl}}}));
+    update(d=>({...d,submissions:{...d.submissions,[roundKey]:{...(d.submissions[roundKey]||{}),you:dataUrl}}}));
     setPaused(true);switchView('gallery');notify('Drawing saved! You can revisit it in the gallery.');
   };
   const voteFor=(id)=>{
     if(id==='you')return notify('You can’t vote for your own doodle.');
     if(phase!=='voting')return notify('Voting opens at 7 PM. Use demo preview to explore it now.');
-    update(d=>({...d,votes:{...d.votes,[group.id]:id}}));notify('Vote saved for '+getPerson(id).name+'!');
+    update(d=>({...d,votes:{...d.votes,[roundKey]:id}}));notify('Vote saved for '+getPerson(id).name+'!');
   };
   const sendChat=()=>{
     const text=chatText.trim();if(!text)return;
@@ -422,7 +429,7 @@ function App() {
   };
   const sendComment=()=>{
     const text=commentText.trim();if(!text||!selectedSketch)return;
-    const key=group.id+':'+selectedSketch.id;
+    const key=roundKey+':'+selectedSketch.id;
     update(d=>({...d,comments:{...d.comments,[key]:[...(d.comments[key]||[]),{id:Date.now(),by:'you',text}]}}));
     setCommentText('');
   };
@@ -484,6 +491,7 @@ function App() {
           </div>}
           <div className="section-header"><div><div className="eyebrow">PULL UP A SEAT</div><h2>What your friends are making<span className="accent-period">.</span></h2></div><button onClick={()=>switchView('gallery')} className="text-link">See all sketches <ArrowRight size={17}/></button></div>
           <div className="preview-gallery">{activeSketches.filter(a=>a.id!=='you'||a.image).slice(0,3).map((art,i)=><button key={art.id} className="art-preview" onClick={()=>openSketch(art)}><div className={'art-cover tone-'+i}>{art.image?<img src={art.image} alt="Your doodle"/>:<Illustration variant={art.kind}/>}<span className="art-cover-icon"><MessageCircle size={17}/></span></div><div className="art-preview-meta"><Avatar id={art.id} size={32}/><div><strong>{art.person.name}</strong><span>{art.role.label}</span></div><ChevronRight size={17}/></div></button>)}</div>
+          {(previousSketch||group.demo)&&<><div className="section-header"><div><div className="eyebrow">THE MORNING AFTER</div><h2>Yesterday's group artwork<span className="accent-period">.</span></h2></div><span className="count-chip">Unlocked at 7 AM</span></div><Reveal group={group} members={members} submission={previousSketch} theme={previousTheme} onDownload={download} onShare={share}/></>}
           {group.demo&&<div className="demo-note"><Info size={16}/><span>The other friends and their sketches are sample data for the prototype. Changes are saved in this browser only.</span></div>}
         </>}
         {view==='groups'&&<>
@@ -533,7 +541,7 @@ function App() {
     {modal==='invite'&&<Modal title="Invite your friends" subtitle={'Only people with the code can join '+group.name+'.'} onClose={()=>setModal('')}><div className="modal-content invite-box"><div className="invite-symbol">✳</div><span className="eyebrow">YOUR PRIVATE CIRCLE CODE</span><strong>{group.code}</strong><Button onClick={copyCode} icon={Copy}>Copy invite code</Button><p>In this prototype codes work only in the current browser. Real invitations require a shared backend.</p></div></Modal>}
     {modal==='notifications'&&<Modal title="Heads up" subtitle="Here's what is happening with your crew." onClose={()=>setModal('')}><div className="modal-content notification-list"><div className="notification-line"><div className="notification-symbol"><Pencil size={21}/></div><div><strong>Your daily prompt is ready</strong><p>{theme.title} · Drawing closes at 7 PM.</p></div></div><div className="notification-line"><div className="notification-symbol alt"><Heart size={21}/></div><div><strong>Vote on your favorites</strong><p>Voting runs from 7 PM to 7 AM every day.</p></div></div><Button variant="outline" onClick={()=>{setModal('');switchView('gallery');}}>Open today's gallery <ArrowRight size={16}/></Button></div></Modal>}
     {modal==='sketch'&&selectedSketch&&<Modal large title={selectedSketch.person.name+'’s sketch'} subtitle={selectedSketch.role.label} onClose={()=>setModal('')}>
-      <div className="sketch-modal-layout"><div className="sketch-modal-art">{selectedSketch.image?<img src={selectedSketch.image} alt="Selected doodle"/>:<Illustration variant={selectedSketch.kind}/>}</div><div className="sketch-comments"><div className="comments-heading"><MessageCircle size={18}/> Comments</div><div className="comment-list">{(db.comments[group.id+':'+selectedSketch.id]||[]).length===0?<p className="no-comments">No comments yet. Be the first to say something nice.</p>:(db.comments[group.id+':'+selectedSketch.id]||[]).map(c=><div className="comment" key={c.id}><Avatar id={c.by} size={29}/><div><strong>{c.by==='you'?db.profile.name:getPerson(c.by).name}</strong><p>{c.text}</p></div></div>)}</div><form className="comment-form" onSubmit={e=>{e.preventDefault();sendComment();}}><input className="text-input" value={commentText} onChange={e=>setCommentText(e.target.value)} maxLength={200} placeholder="Leave a comment..."/><button aria-label="Send comment" type="submit"><Send size={19}/></button></form>{selectedSketch.id!=='you'&&phase==='voting'&&<Button variant={vote===selectedSketch.id?'white':'primary'} onClick={()=>voteFor(selectedSketch.id)} icon={Heart}>{vote===selectedSketch.id?'Voted for this':'Vote for this'}</Button>}</div></div>
+      <div className="sketch-modal-layout"><div className="sketch-modal-art">{selectedSketch.image?<img src={selectedSketch.image} alt="Selected doodle"/>:<Illustration variant={selectedSketch.kind}/>}</div><div className="sketch-comments"><div className="comments-heading"><MessageCircle size={18}/> Comments</div><div className="comment-list">{(db.comments[roundKey+':'+selectedSketch.id]||[]).length===0?<p className="no-comments">No comments yet. Be the first to say something nice.</p>:(db.comments[roundKey+':'+selectedSketch.id]||[]).map(c=><div className="comment" key={c.id}><Avatar id={c.by} size={29}/><div><strong>{c.by==='you'?db.profile.name:getPerson(c.by).name}</strong><p>{c.text}</p></div></div>)}</div><form className="comment-form" onSubmit={e=>{e.preventDefault();sendComment();}}><input className="text-input" value={commentText} onChange={e=>setCommentText(e.target.value)} maxLength={200} placeholder="Leave a comment..."/><button aria-label="Send comment" type="submit"><Send size={19}/></button></form>{selectedSketch.id!=='you'&&phase==='voting'&&<Button variant={vote===selectedSketch.id?'white':'primary'} onClick={()=>voteFor(selectedSketch.id)} icon={Heart}>{vote===selectedSketch.id?'Voted for this':'Vote for this'}</Button>}</div></div>
     </Modal>}
     {modal==='reset'&&<Modal title="Reset your preview?" subtitle="This can't be undone." onClose={()=>setModal('')}><div className="modal-content"><p className="reset-copy">Your local sketches, circles, votes, chat, and settings will be removed from this browser.</p><div className="modal-foot"><Button variant="outline" onClick={()=>setModal('')}>Cancel</Button><Button onClick={()=>{setDb(INITIAL);setModal('');switchView('home');notify('Preview reset.');}}>Reset everything</Button></div></div></Modal>}
     {toastMessage&&<div role="status" className="toast"><Info size={17}/>{toastMessage}</div>}
