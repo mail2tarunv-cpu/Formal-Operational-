@@ -46,3 +46,12 @@ The user has asked for a premium, polished visual feel borrowing cinematic dark 
 - Preserve the touch canvas, accessible labels, private friend-circle stories, five-tab navigation with center Draw button, modal bottom sheets, and mobile safe-area spacing.
 - Verify the Vercel preview on a narrow portrait viewport and confirm no sideways scrolling or clipped controls.
 - This remains a web prototype; a true iOS/Android package, background push, and shared backend are separate work.
+
+## Visual quality rules — photo + icon direction
+
+- **No decorative vector scenes.** Use consistent Lucide icons for actions and photos for sample artworks.
+- Friend avatars are photographic placeholders, not real images of the named demo participants. Do not suggest they are real users.
+- Preserve high contrast, clear tap targets, hierarchy and uncluttered mobile navigation.
+- Treat each screen as a focused mobile task rather than a small desktop dashboard.
+- Design reference decisions and sources: `DESIGN_REVIEW.md`.
+- Use `src/phone.css` for phone layout and visual overrides. Do not modify other teammates' branches.

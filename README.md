@@ -42,3 +42,13 @@ Daily windows are interpreted in the user's **browser-local time zone**. Actual 
 - Do not modify \`main\`, \`Madison\`, or \`Esha\`.
 - Open a Pull Request and ask both other teammates to review before merging.
 - Read \`AGENTS.md\` before continuing with an AI coding agent.
+
+## Design refinement
+
+The prototype is now icon-led and photography-first. Sample people are represented by portrait photos from Unsplash, and the gallery's demo artwork uses photo assets rather than generated vector scenes. These are **stock placeholders, not verified images of the named participants or their submitted drawings**. Remote Unsplash URLs may need bundling locally before production.
+
+Screen pattern references and design decisions are documented in `DESIGN_REVIEW.md`.
+
+- Avoid decorative random stars, emoji, SVG scenery, and unnecessary UI chrome.
+- Use the real user's submitted canvas as the export source; don't invent AI-blended scenes.
+- The app remains a single-browser demo: group creation, chat, votes and scores are not shared across users.

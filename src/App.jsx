@@ -3,7 +3,7 @@ import {
   Home, UsersRound, Images, Trophy, Settings2, Bell, Plus, ArrowRight, ArrowLeft,
   Clock3, Pencil, Eraser, Undo2, Redo2, Trash2, Check, Copy, Share2, Download,
   Heart, MessageCircle, Send, X, Sparkles, Play, Pause, ChevronRight, LockKeyhole,
-  UserRoundPlus, Eye, Star, CalendarDays, Info, ShieldCheck, RotateCcw, CheckCircle2,
+  UserRoundPlus, Eye, Star, CalendarDays, Info, ShieldCheck, RotateCcw, CheckCircle2, SlidersHorizontal, UserRound,
   Brush, Highlighter, Volume2, MoreHorizontal, Palette, ExternalLink, Image as ImageIcon
 } from 'lucide-react';
 
@@ -112,60 +112,32 @@ function freshCode() {
   crypto.getRandomValues(rand);
   return Array.from(rand, (n) => letters[n % letters.length]).join('');
 }
-function Avatar({ id, size = 36, className = '' }) {
-  const p = getPerson(id);
-  return <span title={p.name} className={'avatar ' + className} style={{ '--avatar': p.color, width: size, height: size, fontSize: size * 0.29 }}>{p.initials}</span>;
+const AVATAR_PHOTOS = {
+ you:'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&crop=faces&w=200&h=200&q=82',
+ maya:'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&crop=faces&w=200&h=200&q=82',
+ jules:'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&crop=faces&w=200&h=200&q=82',
+ noah:'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&crop=faces&w=200&h=200&q=82',
+ ava:'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&crop=faces&w=200&h=200&q=82'
+};
+const ART_PHOTOS = {
+ city:'https://images.unsplash.com/photo-1541961017774-22349e4a1262?auto=format&fit=crop&w=1000&q=85',
+ building:'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=800&q=83',
+ sky:'https://images.unsplash.com/photo-1758521232721-da2be69f0b64?auto=format&fit=crop&w=800&q=83',
+ locals:'https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&w=800&q=83',
+ transport:'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=800&q=83'
+};
+function Avatar({id,size=36,className=''}) {
+ const p=getPerson(id);
+ return <span title={p.name+' · sample photo'} className={'avatar photo-avatar '+className} style={{'--avatar':p.color,width:size,height:size}}>
+   <UserRound className="photo-fallback" aria-hidden="true" size={Math.floor(size*.46)} strokeWidth={1.8}/>
+   <img src={AVATAR_PHOTOS[id]||AVATAR_PHOTOS.you} alt={p.name+' profile'} decoding="async" loading="lazy" onError={e=>{e.currentTarget.style.display='none'}}/>
+ </span>;
 }
-function Stack({ ids, size = 32 }) {
-  return <span className="avatar-stack">{ids.map((id) => <Avatar key={id} id={id} size={size} />)}</span>;
+function Stack({ids,size=32}) {
+ return <span className="avatar-stack">{ids.map(id=><Avatar key={id} id={id} size={size}/>)}</span>;
 }
-function Illustration({ variant = 'city', className = '', size = 'large' }) {
-  const v = variant;
-  return <svg className={'illustration illustration-' + size + ' ' + className} viewBox="0 0 460 360" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <defs>
-      <linearGradient id={'skyg-' + v} x1="0" y1="0" x2="1" y2="1"><stop stopColor={v === 'sky' ? '#f88bbd' : '#514bd3'} /><stop offset=".59" stopColor={v === 'sky' ? '#a89ff2' : '#aa6bc0'} /><stop offset="1" stopColor={v === 'sky' ? '#ffd4ac' : '#f7a47b'} /></linearGradient>
-      <linearGradient id={'sandg-' + v} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#b56699" /><stop offset="1" stopColor="#613b83" /></linearGradient>
-      <pattern id={'dots-' + v} width="33" height="33" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r="1" fill="#fff" opacity=".3"/></pattern>
-    </defs>
-    <rect width="460" height="360" rx="24" fill={'url(#skyg-' + v + ')'} />
-    <rect width="460" height="360" rx="24" fill={'url(#dots-' + v + ')'} />
-    <circle cx="340" cy="88" r="51" fill="#ffe8b7" opacity=".95"/><circle cx="340" cy="88" r="62" stroke="#fff4d9" strokeWidth="1.5" opacity=".62"/>
-    <ellipse cx="113" cy="100" rx="45" ry="14" fill="#f1bde9" opacity=".4"/><ellipse cx="147" cy="96" rx="32" ry="8" fill="#f9d6ff" opacity=".45"/>
-    <path d="M0 257L91 188L170 254L237 193L327 254L393 214L460 267V360H0Z" fill="#b96cba" opacity=".7"/>
-    <path d="M0 299L87 260L161 286L251 250L341 282L415 255L460 273V360H0Z" fill={'url(#sandg-' + v + ')'} />
-    {(v === 'city' || v === 'building' || v === 'sky') && <>
-      <path d="M76 265V160L115 143L153 160V265" fill="#312a6e" stroke="#ecd6fd" strokeWidth="3"/>
-      <path d="M174 266V108L205 85L240 108V266" fill="#3b326f" stroke="#eadfff" strokeWidth="3"/>
-      <path d="M251 266V169L285 140L319 169V266" fill="#46347e" stroke="#eadfff" strokeWidth="3"/>
-      <path d="M326 270V199L360 182L399 203V270" fill="#332d75" stroke="#eadfff" strokeWidth="3"/>
-      <path d="M205 85V54M193 62H217" stroke="#f2e9f9" strokeWidth="3" strokeLinecap="round"/>
-      {[88, 114, 140, 166].map((y) => <g key={y} stroke="#ffe5b9" strokeWidth="3" strokeLinecap="round"><path d={'M189 ' + (y+1) + 'h10M214 ' + (y+1) + 'h10'} /><path d={'M100 ' + (y+78) + 'h10M120 ' + (y+78) + 'h8'}/></g>)}
-      <path d="M158 263C190 248 254 248 298 263" stroke="#ffa9c9" strokeWidth="3"/>
-    </>}
-    {(v === 'locals') && <>
-      {[133,230,329].map((x,i) => <g key={x} transform={'translate(' + x + ' ' + (i===1?155:172) + ')'}>
-        <path d="M-19 59L-31 103M19 59L31 103M-20 97L-29 140M20 97L29 140" stroke="#fff3da" strokeWidth="7" strokeLinecap="round"/>
-        <ellipse cy="65" rx="28" ry="39" fill={i===1?'#d8ff9c':'#ffb9d0'} stroke="#473d7b" strokeWidth="3"/>
-        <ellipse cy="3" rx="35" ry="35" fill={i===1?'#d8ff9c':'#ffc6d7'} stroke="#473d7b" strokeWidth="3"/>
-        <circle cx="-12" cy="1" r="5" fill="#473d7b"/><circle cx="12" cy="1" r="5" fill="#473d7b"/>
-        <path d="M-12 17Q0 27 12 17" stroke="#473d7b" strokeWidth="3" strokeLinecap="round"/>
-        <path d="M-17 -31L-24 -44M17 -31L24 -44" stroke="#473d7b" strokeWidth="3" strokeLinecap="round"/>
-      </g>)}
-    </>}
-    {(v === 'transport') && <>
-      <g transform="translate(53 148)">
-        <path d="M26 89L47 41H225L267 89Z" fill="#e9d7ff" stroke="#382866" strokeWidth="5" strokeLinejoin="round"/>
-        <path d="M92 40V8H184V40" fill="#cdff8c" stroke="#382866" strokeWidth="5"/>
-        <circle cx="77" cy="108" r="29" fill="#242345" stroke="#efdfff" strokeWidth="7"/>
-        <circle cx="213" cy="108" r="29" fill="#242345" stroke="#efdfff" strokeWidth="7"/>
-        <path d="M119 59H191" stroke="#5f418b" strokeWidth="6" strokeLinecap="round"/>
-        <path d="M184 8L214 -18" stroke="#f8f3fd" strokeWidth="4" strokeLinecap="round"/>
-        <circle cx="214" cy="-18" r="8" fill="#f5ffaf"/>
-      </g>
-    </>}
-    <path d="M0 331C100 317 157 327 224 339S383 320 460 329" stroke="#f8d0f0" strokeWidth="2" opacity=".6"/>
-    <circle cx="57" cy="69" r="3" fill="#fff9d6"/><circle cx="240" cy="48" r="3" fill="#fff9d6"/><circle cx="414" cy="153" r="2" fill="#fff9d6"/>
-  </svg>;
+function Illustration({variant='city',className='',size='large'}) {
+ return <img className={'illustration photo-art illustration-'+size+' '+className} src={ART_PHOTOS[variant]||ART_PHOTOS.city} alt="Example artwork photograph" loading={size==='large'?'eager':'lazy'} decoding="async" onError={e=>{e.currentTarget.style.opacity='.06'}}/>;
 }
 function Modal({ title, subtitle, onClose, children, large = false }) {
   return <div className="modal-backdrop" onPointerDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -265,12 +237,12 @@ function DrawingStudio({ group, prompt, initialSeconds, paused, onPause, onTime,
       <button className="prompt-peek" onClick={() => setShowPrompt((v) => !v)}><Eye size={17}/> View prompt</button>
     </header>
     <div className="studio-body">
-      <div className="studio-intro"><span className="tag tag-accent">YOUR SECRET PROMPT</span><h1>{prompt.label}<span className="title-star">✳</span></h1><p>{prompt.detail}</p></div>
+      <div className="studio-intro"><span className="tag tag-accent">YOUR SECRET PROMPT</span><h1>{prompt.label}<span className="title-star"><Brush size={22}/></span></h1><p>{prompt.detail}</p></div>
       <div className="canvas-shell">
         <div className="canvas-topline"><div className="canvas-meta"><span className="tiny-dot"/><span>Untitled masterpiece</span></div><div className={'timer ' + (initialSeconds < 60 ? 'timer-urgent' : '')}><Clock3 size={17}/>{minutes}:{seconds}<button aria-label={paused ? 'Resume timer' : 'Pause timer'} onClick={() => onPause(!paused)}>{paused ? <Play size={17} fill="currentColor"/> : <Pause size={17} fill="currentColor"/>}</button></div></div>
         <div className="paper">
           <div className="paper-grid"/>
-          {!hasDrawing && <div className="canvas-hint">Draw anything.<br/>Seriously, anything. <span>✳</span></div>}
+          {!hasDrawing && <div className="canvas-hint">Draw anything.<br/>Seriously, anything.</div>}
           <canvas ref={canvas} width="900" height="650" aria-label="Draw with touch or mouse" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onLostPointerCapture={up} style={{touchAction:'none'}}/>
           {paused && <div className="canvas-pause"><Pause size={23}/><strong>Taking five?</strong><span>Your timer is paused.</span><Button onClick={() => onPause(false)} icon={Play}>Keep drawing</Button></div>}
         </div>
@@ -296,39 +268,33 @@ function DrawingStudio({ group, prompt, initialSeconds, paused, onPause, onTime,
   </main>;
 }
 function composeImage(group, members, submission, theme, onDone) {
-  const c = document.createElement('canvas');c.width=1080;c.height=1080;
-  const x = c.getContext('2d');
-  const bg = x.createLinearGradient(0,0,1000,1080);bg.addColorStop(0,'#221a54');bg.addColorStop(.54,'#a95f99');bg.addColorStop(1,'#fcab83');x.fillStyle=bg;x.fillRect(0,0,1080,1080);
-  for (let i=0; i<55; i++) {const a=i*79%1080,b=i*137%700;x.beginPath();x.arc(a,b,(i%3+1)*1.2,0,Math.PI*2);x.fillStyle='#ffe4d3';x.fill();}
-  x.beginPath();x.arc(820,190,110,0,Math.PI*2);x.fillStyle='#ffe3b0';x.fill();
-  x.beginPath();x.arc(820,190,135,0,Math.PI*2);x.strokeStyle='#ffffff66';x.lineWidth=3;x.stroke();
-  x.fillStyle='#6d3b82';x.beginPath();x.moveTo(0,740);x.lineTo(250,490);x.lineTo(450,750);x.lineTo(680,550);x.lineTo(1080,790);x.lineTo(1080,1080);x.lineTo(0,1080);x.fill();
-  x.fillStyle='#39275b';
-  const buildings=[[135,500,130,350],[285,410,120,440],[447,300,148,555],[626,490,160,370],[820,445,120,400]];
-  buildings.forEach(([bx,by,bw,bh],i)=>{
-    x.fillStyle=i%2?'#30265d':'#423270';x.fillRect(bx,by,bw,bh);
-    x.strokeStyle='#d9d0ff';x.lineWidth=4;x.strokeRect(bx,by,bw,bh);
-    for(let j=0;j<4;j++)for(let k=0;k<3;k++){x.fillStyle='#ffe5ad';x.fillRect(bx+22+k*30,by+30+j*60,10,17);}
-  });
-  x.strokeStyle='#ffdeec';x.lineWidth=5;x.beginPath();x.moveTo(521,300);x.lineTo(521,230);x.stroke();
-  x.fillStyle='#4d315f';x.fillRect(0,820,1080,260);
-  for(let j=0;j<4;j++){const px=380+j*85;x.fillStyle=j%2?'#d1ff9a':'#ffd6e7';x.beginPath();x.arc(px,835,20,0,Math.PI*2);x.fill();x.fillRect(px-17,856,34,61);}
-  x.fillStyle='#e9ffab';x.fillRect(800,899,185,50);x.fillStyle='#272544';x.beginPath();x.arc(839,953,28,0,7);x.arc(941,953,28,0,7);x.fill();
-  x.fillStyle='#fff';x.font='bold 30px sans-serif';x.fillText('MADE TOGETHER',70,78);x.font='bold 59px sans-serif';x.fillText(theme.title,70,148);
-  x.font='25px sans-serif';x.fillStyle='#fff0e4';x.fillText(group.name + '  •  ' + members.length + ' artists',70,1009);
-  if (submission) {
-    const i=new window.Image();
-    i.onload=()=>{x.globalAlpha=.98;x.drawImage(i,115,390,840,570);x.globalAlpha=1;onDone(c.toDataURL('image/png'));};
-    i.onerror=()=>onDone(c.toDataURL('image/png'));
-    i.src=submission;
-  }else onDone(c.toDataURL('image/png'));
+  if (!submission) { onDone(''); return; }
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080; canvas.height = 1080;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#f2eee8'; ctx.fillRect(0,0,1080,1080);
+  ctx.fillStyle = '#1b1a1c'; ctx.font = 'bold 24px sans-serif'; ctx.fillText('DOODL  /  DAILY DROP', 64, 83);
+  ctx.font = 'bold 55px sans-serif'; ctx.fillText(theme.title, 64, 152);
+  ctx.fillStyle = '#aaa3a0'; ctx.fillRect(64,181,952,3);
+  const img = new window.Image();
+  img.onload = () => {
+    ctx.fillStyle='#fffdfa'; ctx.fillRect(64,219,952,710);
+    const scale = Math.min(952/img.width,710/img.height);
+    const w=img.width*scale,h=img.height*scale;
+    ctx.drawImage(img,64+(952-w)/2,219+(710-h)/2,w,h);
+    ctx.font='25px sans-serif';ctx.fillStyle='#4e4b49';
+    ctx.fillText('BY '+members.length+' FRIENDS  •  '+group.name.toUpperCase(),64,1014);
+    onDone(canvas.toDataURL('image/png'));
+  };
+  img.onerror = () => onDone('');
+  img.src=submission;
 }
 function Reveal({ group, members, submission, theme, onDownload, onShare }) {
   const [image,setImage]=useState('');
   useEffect(()=>{let alive=true;composeImage(group,members,submission,theme,(src)=>{if(alive)setImage(src);});return()=>{alive=false;};},[group.id,submission,theme.title]);
   return <div className="reveal">
-    <div className="reveal-text"><span className="tag tag-accent"><Sparkles size={13}/> FINAL REVEAL</span><h2>Better when<br/><em>we make it together.</em></h2><p>This is a composed preview of your group's work. The AI blending service isn't connected yet.</p><Stack ids={members} size={38}/><div className="reveal-actions"><Button icon={Download} onClick={()=>image && onDownload(image)}>Save artwork</Button><Button variant="outline" icon={Share2} onClick={()=>image && onShare(image)}>Share</Button></div></div>
-    <div className="final-art">{image ? <img src={image} alt={'Composed drawing for ' + theme.title}/> : <div className="skeleton-art"/>}<span className="art-stamp">THE DAILY DROP <Star size={13} fill="currentColor"/></span></div>
+    <div className="reveal-text"><span className="tag tag-accent"><Sparkles size={13}/> FINAL REVEAL</span><h2>Better when<br/><em>we make it together.</em></h2><p>{submission ? 'Your submission, packaged as an exportable poster. The group-wide AI blend is not connected yet.' : 'A preview of the final group artwork. Submit a drawing first to enable export.'}</p><Stack ids={members} size={38}/><div className="reveal-actions"><Button icon={Download} disabled={!image} onClick={()=>image && onDownload(image)}>Save artwork</Button><Button variant="outline" disabled={!image} icon={Share2} onClick={()=>image && onShare(image)}>Share</Button></div></div>
+    <div className="final-art">{image ? <img src={image} alt={'Composed drawing for ' + theme.title}/> : <Illustration variant="building" className="reveal-preview-photo"/>}<span className="art-stamp">{submission ? "YOUR ARTWORK" : "REFERENCE PREVIEW"} <ImageIcon size={13}/></span></div>
   </div>;
 }
 const NAV=[
@@ -456,7 +422,7 @@ function App() {
   const openSketch=(sketch)=>{setSelectedSketch(sketch);setCommentText('');setModal('sketch');};
   const groupChat=db.chats[group.id]||[];
   const tabs=<div className="nav-items">{NAV.map(item=><button key={item.id} className={'nav-link '+(view===item.id?'nav-active':'')} onClick={()=>switchView(item.id)}><item.icon size={21} strokeWidth={view===item.id?2.4:1.8}/><span>{item.label}</span>{view===item.id&&<i/>}</button>)}</div>;
-  const groupMini=<button className="current-circle" onClick={()=>setModal('switch')}><div className="circle-badge">✳</div><div><strong>{group.name}</strong><span>{members.length} friends in here</span></div><ChevronRight size={17}/></button>;
+  const groupMini=<button className="current-circle" onClick={()=>setModal('switch')}><div className="circle-badge"><Avatar id={group.members.find(x=>x!=='you')||'you'} size={37}/></div><div><strong>{group.name}</strong><span>{members.length} friends in here</span></div><ChevronRight size={17}/></button>;
   if(view==='draw')return <>
     <DrawingStudio group={group} prompt={prompt} initialSeconds={seconds} paused={paused} onPause={setPaused} onTime={setSeconds} onExit={()=>switchView('home')} onSubmit={submitDrawing} toast={notify}/>
     {toastMessage&&<div role="status" className="toast"><Info size={17}/>{toastMessage}</div>}
@@ -464,7 +430,7 @@ function App() {
   return <div className="app-shell">
     <div className="device-status" aria-hidden="true"><span>9:41</span><span className="device-status-icons">●● <span className="device-battery">▰</span></span></div>
     <aside className="sidebar">
-      <button className="logo" onClick={()=>switchView('home')}>doodl<span>✳</span><b>.</b></button>
+      <button className="logo" onClick={()=>switchView('home')}>doodl<b>.</b></button>
       <div className="sidebar-label">YOUR SPACE</div>{tabs}
       <div className="sidebar-gap"/>
       <div className="sidebar-label">YOUR CIRCLE</div>{groupMini}
@@ -473,9 +439,9 @@ function App() {
     </aside>
     <div className="page-area">
       <header className="topbar">
-        <button className="mobile-logo" onClick={()=>switchView('home')}>doodl<span>✳</span><b>.</b></button>
+        <button className="mobile-logo" onClick={()=>switchView('home')}>doodl<b>.</b></button>
         <div className="topbar-titles"><span>THE DAILY DROP</span><strong>{view==='home'?'Home':view==='groups'?'Your circles':view==='gallery'?'The gallery':view==='leaderboard'?'Leaderboard':'Your space'}</strong></div>
-        <div className="topbar-right"><span className="day-badge"><span className="live-dot"/> {getRealPhase(now)==='drawing'?'Drawing window':'Voting window'}</span><button className="icon-button notification-btn" title="Notifications" onClick={()=>setModal('notifications')}><Bell size={21}/><span className="unread-dot"/></button><button className="user-pill" onClick={()=>switchView('profile')}><Avatar id="you" size={33}/></button></div>
+        <div className="topbar-right"><button className="icon-button preview-trigger" title="Preview test stages" aria-label="Preview test stages" aria-expanded={showDemo} onClick={()=>setShowDemo(v=>!v)}><SlidersHorizontal size={19}/></button><span className="day-badge"><span className="live-dot"/> {getRealPhase(now)==='drawing'?'Drawing window':'Voting window'}</span><button className="icon-button notification-btn" title="Notifications" onClick={()=>setModal('notifications')}><Bell size={21}/><span className="unread-dot"/></button><button className="user-pill" onClick={()=>switchView('profile')}><Avatar id="you" size={33}/></button></div>
       </header>
       <main className="content">
         <div className={'demo-strip '+(showDemo?'demo-open':'')}>
@@ -485,23 +451,23 @@ function App() {
           {showDemo&&<div className="demo-options">{[{id:'live',label:'Live'},{id:'drawing',label:'Draw'},{id:'voting',label:'Vote'},{id:'reveal',label:'Reveal'}].map(item=><button key={item.id} className={demo===item.id?'selected':''} onClick={()=>{setDemo(item.id);setShowDemo(false);}}>{item.label}</button>)}</div>}
         </div>
         {view==='home'&&<>
-          <div className="welcome-row"><div><div className="eyebrow">{formatDate(now).toUpperCase()}</div><h1>Make something<br/><em>weird today.</em></h1><p>Your daily dose of drawing with friends.</p></div><div className="welcome-side"><div className="floating-asterisk">✳</div></div></div>
+          <div className="welcome-row"><div><div className="eyebrow">{formatDate(now).toUpperCase()}</div><h1>Make something<br/><em>weird today.</em></h1><p>Your daily dose of drawing with friends.</p></div><div className="welcome-side"/></div>
           <div className="mobile-stories" aria-label="Your friend circles">
             <button className="story-item" onClick={()=>setModal('new')}><span className="story-ring story-add"><Plus size={25}/></span><span>New circle</span></button>
             {db.groups.map((circle, i)=><button key={circle.id} className={'story-item '+(circle.id===group.id?'story-selected':'')} onClick={()=>selectGroup(circle.id)}>
-              <span className="story-ring"><span className={'story-avatar story-avatar-'+(i%4)}>{circle.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase()}</span></span>
+              <span className="story-ring"><Avatar id={circle.members.find(x=>x!=='you')||'you'} size={58}/></span>
               <span>{circle.name.length>12?circle.name.slice(0,10)+'…':circle.name}</span>
             </button>)}
             <button className="story-item" onClick={()=>setModal('join')}><span className="story-ring story-join"><UserRoundPlus size={21}/></span><span>Join circle</span></button>
           </div>
-          <div className="home-meta"><span>THE DAILY DROP <span className="home-meta-dot">✳</span></span><button onClick={()=>setModal('switch')}>{group.name} <ChevronRight size={15}/></button></div>
+          <div className="home-meta"><span><CalendarDays size={14}/> TODAY'S CHALLENGE</span><button onClick={()=>setModal('switch')}>{group.name} <ChevronRight size={15}/></button></div>
           <div className="hero-card">
-            <div className="hero-copy"><div className="hero-badges"><span className="tag tag-dark"><span className="pulse-dot"/> TODAY'S DROP</span><span className="tag tag-dark">{theme.label}</span></div><div className="hero-overline">YOUR DAILY CREATIVE CHALLENGE</div><h2>{theme.title}<span>✳</span></h2><p>{theme.subtitle}</p><div className="hero-action"><Button onClick={startDraw} icon={ArrowRight}>{savedSketch?'Draw again':'Start doodling'}</Button><span><Clock3 size={15}/> 7 AM – 7 PM</span></div></div>
-            <div className="hero-image"><Illustration variant="city"/><span className="hero-art-credit">IMAGINE THE IMPOSSIBLE / 001</span></div>
+            <div className="hero-copy"><div className="hero-badges"><span className="tag tag-dark"><span className="pulse-dot"/> TODAY'S DROP</span><span className="tag tag-dark">{theme.label}</span></div><div className="hero-overline">YOUR DAILY CREATIVE CHALLENGE</div><h2>{theme.title}</h2><p>{theme.subtitle}</p><div className="hero-action"><Button onClick={startDraw} icon={ArrowRight}>{savedSketch?'Draw again':'Start doodling'}</Button><span><Clock3 size={15}/> 7 AM – 7 PM</span></div></div>
+            <div className="hero-image"><Illustration variant="city"/><span className="hero-art-credit"><Images size={12}/> SAMPLE ARTWORK</span></div>
           </div>
           <div className="schedule"><div className={'schedule-step '+(phase==='drawing'?'step-active':'')}><span className="schedule-icon"><Pencil size={19}/></span><div><strong>01 / Draw</strong><span>7 AM – 7 PM</span></div></div><div className="schedule-line"/><div className={'schedule-step '+(phase==='voting'?'step-active':'')}><span className="schedule-icon"><Heart size={19}/></span><div><strong>02 / Vote</strong><span>7 PM – 7 AM</span></div></div><div className="schedule-line"/><div className={'schedule-step '+(phase==='reveal'?'step-active':'')}><span className="schedule-icon"><Sparkles size={19}/></span><div><strong>03 / Reveal</strong><span>Next day, 7 AM</span></div></div></div>
           {phase==='reveal'?<Reveal group={group} members={members} submission={savedSketch} theme={theme} onDownload={download} onShare={share}/>:<div className="home-columns">
-            <div className="daily-prompt"><div className="section-label"><span className="mono">01 / YOUR ASSIGNMENT</span><span className="privacy"><LockKeyhole size={12}/> JUST FOR YOU</span></div><span className="prompt-asterisk">✳</span><span className="prompt-caption">YOU GOT THE</span><h3>{prompt.label}<span>.</span></h3><p>{prompt.detail}</p><Button onClick={startDraw} icon={ArrowRight} variant="white">{savedSketch?'Edit your drawing':'Let’s draw'}</Button></div>
+            <div className="daily-prompt"><div className="section-label"><span className="mono">01 / YOUR ASSIGNMENT</span><span className="privacy"><LockKeyhole size={12}/> JUST FOR YOU</span></div><span className="prompt-icon"><Palette size={82} strokeWidth={1.2}/></span><span className="prompt-caption">YOU GOT THE</span><h3>{prompt.label}<span>.</span></h3><p>{prompt.detail}</p><Button onClick={startDraw} icon={ArrowRight} variant="white">{savedSketch?'Edit your drawing':'Let’s draw'}</Button></div>
             <div className="crew-card"><div className="section-label"><span className="mono">02 / YOUR CREW</span><button onClick={()=>setShowChat(true)}>Open chat <ArrowRight size={15}/></button></div><div className="crew-list">{members.map((id,i)=><div key={id} className="crew-person"><Avatar id={id} size={42}/><div><strong>{id==='you'?db.profile.name:getPerson(id).name}</strong><span>{theme.prompts[i%theme.prompts.length].label}</span></div><span className={'person-status '+(id==='you'&&savedSketch?'complete':'')}>{id==='you'?(savedSketch?'Done':'You'):(group.demo?'Sketching':'Invited')}</span></div>)}</div><button className="crew-invite" onClick={()=>setModal('invite')}><UserRoundPlus size={18}/> Invite someone <ArrowRight size={17}/></button></div>
           </div>}
           <div className="section-header"><div><div className="eyebrow">PULL UP A SEAT</div><h2>What your friends are making<span className="accent-period">.</span></h2></div><button onClick={()=>switchView('gallery')} className="text-link">See all sketches <ArrowRight size={17}/></button></div>
@@ -512,7 +478,7 @@ function App() {
         {view==='groups'&&<>
           <div className="page-heading"><span className="eyebrow">YOUR PEOPLE / YOUR RULES</span><h1>Good ideas<br/><em>start together.</em></h1><p>Create a private circle or hang out one-on-one. Invite friends using a code, never a public search.</p><div className="heading-actions"><Button onClick={()=>setModal('new')} icon={Plus}>Create a circle</Button><Button onClick={()=>setModal('join')} variant="outline" icon={ArrowRight}>Join with code</Button></div></div>
           <div className="section-header"><h2>Your circles<span className="accent-period">.</span></h2><span className="count-chip">{db.groups.length} total</span></div>
-          <div className="group-grid">{db.groups.map(g=><button key={g.id} className={'group-tile '+(g.id===group.id?'active':'')} onClick={()=>selectGroup(g.id)}><div className="tile-graphic"><span>✳</span><div className="tile-bubbles"><i/><i/><i/></div></div><div className="tile-content"><div className="group-type"><LockKeyhole size={13}/> {g.type==='duo'?'ONE-ON-ONE':'PRIVATE CIRCLE'}</div><h3>{g.name}</h3><Stack ids={g.members} size={34}/><div className="tile-foot"><span>{g.members.length} members</span><span>Open circle <ArrowRight size={15}/></span></div></div></button>)}</div>
+          <div className="group-grid">{db.groups.map(g=><button key={g.id} className={'group-tile '+(g.id===group.id?'active':'')} onClick={()=>selectGroup(g.id)}><div className="tile-graphic"><Illustration variant={g.id==='orbit'?'building':'city'}/><span className="tile-avatar-stack"><Stack ids={g.members} size={29}/></span></div><div className="tile-content"><div className="group-type"><LockKeyhole size={13}/> {g.type==='duo'?'ONE-ON-ONE':'PRIVATE CIRCLE'}</div><h3>{g.name}</h3><Stack ids={g.members} size={34}/><div className="tile-foot"><span>{g.members.length} members</span><span>Open circle <ArrowRight size={15}/></span></div></div></button>)}</div>
           <div className="group-tools"><div><span className="eyebrow">YOUR INVITE CODE</span><h3>{group.code}</h3><p>Only people with your code can join once a shared backend is connected.</p></div><Button variant="outline" onClick={copyCode} icon={Copy}>Copy code</Button></div>
           <div className="chat-section"><div className="section-header"><div><div className="eyebrow">GROUP CONVERSATION</div><h2>{group.name} chat<span className="accent-period">.</span></h2></div></div><Chat messages={groupChat} text={chatText} onText={setChatText} onSend={sendChat} currentName={db.profile.name}/></div>
         </>}
@@ -556,8 +522,8 @@ function App() {
       <span className="field-label">INVITE YOUR FRIENDS</span><div className="friends-picker">{PEOPLE.filter(p=>p.id!=='you').map(p=><button key={p.id} className={'friend-choice '+(chosen.includes(p.id)?'chosen':'')} onClick={()=>setChosen(list=>newGroupType==='duo'?[p.id]:list.includes(p.id)?list.filter(x=>x!==p.id):[...list,p.id])}><Avatar id={p.id} size={36}/><span>{p.name}</span>{chosen.includes(p.id)?<CheckCircle2 size={20}/>:<Plus size={19}/>}</button>)}</div><div className="modal-foot"><p>Private by default. Invite codes are demo-only for now.</p><Button onClick={createGroup} icon={ArrowRight}>Create circle</Button></div></div>
     </Modal>}
     {modal==='join'&&<Modal title="Join a circle" subtitle="Got a code from a friend?" onClose={()=>setModal('')}><div className="modal-content"><label className="field-label" htmlFor="join-code">INVITE CODE</label><input className="text-input code-input" id="join-code" value={joinCode} maxLength="12" onChange={e=>setJoinCode(e.target.value.toUpperCase())} placeholder="ENTER CODE"/><div className="modal-foot"><p>Codes only work for circles created in this browser until a shared backend is added.</p><Button onClick={joinGroup} icon={ArrowRight}>Join circle</Button></div></div></Modal>}
-    {modal==='switch'&&<Modal title="Switch circles" subtitle="Pick who you're making things with." onClose={()=>setModal('')}><div className="modal-content circle-picker">{db.groups.map(g=><button key={g.id} className="circle-choice" onClick={()=>{selectGroup(g.id);setModal('');}}><div className="circle-badge">✳</div><div><strong>{g.name}</strong><span>{g.members.length} friends · {g.type==='duo'?'one-on-one':'group circle'}</span></div>{g.id===group.id?<CheckCircle2 size={20}/>:<ChevronRight size={20}/>}</button>)}<button className="circle-choice add-choice" onClick={()=>setModal('new')}><div className="circle-badge"><Plus size={21}/></div><strong>Create a new circle</strong></button></div></Modal>}
-    {modal==='invite'&&<Modal title="Invite your friends" subtitle={'Only people with the code can join '+group.name+'.'} onClose={()=>setModal('')}><div className="modal-content invite-box"><div className="invite-symbol">✳</div><span className="eyebrow">YOUR PRIVATE CIRCLE CODE</span><strong>{group.code}</strong><Button onClick={copyCode} icon={Copy}>Copy invite code</Button><p>In this prototype codes work only in the current browser. Real invitations require a shared backend.</p></div></Modal>}
+    {modal==='switch'&&<Modal title="Switch circles" subtitle="Pick who you're making things with." onClose={()=>setModal('')}><div className="modal-content circle-picker">{db.groups.map(g=><button key={g.id} className="circle-choice" onClick={()=>{selectGroup(g.id);setModal('');}}><div className="circle-badge"><Avatar id={g.members.find(x=>x!=='you')||'you'} size={37}/></div><div><strong>{g.name}</strong><span>{g.members.length} friends · {g.type==='duo'?'one-on-one':'group circle'}</span></div>{g.id===group.id?<CheckCircle2 size={20}/>:<ChevronRight size={20}/>}</button>)}<button className="circle-choice add-choice" onClick={()=>setModal('new')}><div className="circle-badge"><Plus size={21}/></div><strong>Create a new circle</strong></button></div></Modal>}
+    {modal==='invite'&&<Modal title="Invite your friends" subtitle={'Only people with the code can join '+group.name+'.'} onClose={()=>setModal('')}><div className="modal-content invite-box"><div className="invite-symbol"><UserRoundPlus size={46} strokeWidth={1.5}/></div><span className="eyebrow">YOUR PRIVATE CIRCLE CODE</span><strong>{group.code}</strong><Button onClick={copyCode} icon={Copy}>Copy invite code</Button><p>In this prototype codes work only in the current browser. Real invitations require a shared backend.</p></div></Modal>}
     {modal==='notifications'&&<Modal title="Heads up" subtitle="Here's what is happening with your crew." onClose={()=>setModal('')}><div className="modal-content notification-list"><div className="notification-line"><div className="notification-symbol"><Pencil size={21}/></div><div><strong>Your daily prompt is ready</strong><p>{theme.title} · Drawing closes at 7 PM.</p></div></div><div className="notification-line"><div className="notification-symbol alt"><Heart size={21}/></div><div><strong>Vote on your favorites</strong><p>Voting runs from 7 PM to 7 AM every day.</p></div></div><Button variant="outline" onClick={()=>{setModal('');switchView('gallery');}}>Open today's gallery <ArrowRight size={16}/></Button></div></Modal>}
     {modal==='sketch'&&selectedSketch&&<Modal large title={selectedSketch.person.name+'’s sketch'} subtitle={selectedSketch.role.label} onClose={()=>setModal('')}>
       <div className="sketch-modal-layout"><div className="sketch-modal-art">{selectedSketch.image?<img src={selectedSketch.image} alt="Selected doodle"/>:<Illustration variant={selectedSketch.kind}/>}</div><div className="sketch-comments"><div className="comments-heading"><MessageCircle size={18}/> Comments</div><div className="comment-list">{(db.comments[roundKey+':'+selectedSketch.id]||[]).length===0?<p className="no-comments">No comments yet. Be the first to say something nice.</p>:(db.comments[roundKey+':'+selectedSketch.id]||[]).map(c=><div className="comment" key={c.id}><Avatar id={c.by} size={29}/><div><strong>{c.by==='you'?db.profile.name:getPerson(c.by).name}</strong><p>{c.text}</p></div></div>)}</div><form className="comment-form" onSubmit={e=>{e.preventDefault();sendComment();}}><input className="text-input" value={commentText} onChange={e=>setCommentText(e.target.value)} maxLength={200} placeholder="Leave a comment..."/><button aria-label="Send comment" type="submit"><Send size={19}/></button></form>{selectedSketch.id!=='you'&&phase==='voting'&&<Button variant={vote===selectedSketch.id?'white':'primary'} onClick={()=>voteFor(selectedSketch.id)} icon={Heart}>{vote===selectedSketch.id?'Voted for this':'Vote for this'}</Button>}</div></div>
