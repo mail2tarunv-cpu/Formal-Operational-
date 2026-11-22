@@ -37,3 +37,12 @@ The frontend is an interactive **prototype with browser-local persistence** and 
 4. Integrate AI stitching only after defining prompts, image permissions and costs.
 
 The user has asked for a premium, polished visual feel borrowing cinematic dark hierarchy (Netflix) and intuitive social mechanics (Instagram), but avoid trademarked assets and avoid cloning those brands' interfaces literally.
+
+## Phone-first presentation (updated)
+
+- This is a **portrait phone app experience**, not a desktop dashboard. Keep the main app inside a mobile-width shell and use the bottom tab bar for primary navigation.
+- `src/phone.css` owns the phone UI presentation and overrides `src/styles.css`. Update `phone.css` for design changes rather than adding desktop layouts.
+- On actual phone browsers, the app fills the screen. On desktop, it appears in a centered device-width preview for critique.
+- Preserve the touch canvas, accessible labels, private friend-circle stories, five-tab navigation with center Draw button, modal bottom sheets, and mobile safe-area spacing.
+- Verify the Vercel preview on a narrow portrait viewport and confirm no sideways scrolling or clipped controls.
+- This remains a web prototype; a true iOS/Android package, background push, and shared backend are separate work.

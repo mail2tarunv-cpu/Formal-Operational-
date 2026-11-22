@@ -341,6 +341,7 @@ function App() {
   const [modal,setModal]=useState('');
   const [now,setNow]=useState(()=>new Date());
   const [demo,setDemo]=useState('live');
+  const [showDemo,setShowDemo]=useState(false);
   const [toastMessage,setToastMessage]=useState('');
   const [newGroupName,setNewGroupName]=useState('');
   const [newGroupType,setNewGroupType]=useState('group');
@@ -461,6 +462,7 @@ function App() {
     {toastMessage&&<div role="status" className="toast"><Info size={17}/>{toastMessage}</div>}
   </>;
   return <div className="app-shell">
+    <div className="device-status" aria-hidden="true"><span>9:41</span><span className="device-status-icons">●● <span className="device-battery">▰</span></span></div>
     <aside className="sidebar">
       <button className="logo" onClick={()=>switchView('home')}>doodl<span>✳</span><b>.</b></button>
       <div className="sidebar-label">YOUR SPACE</div>{tabs}
@@ -476,10 +478,23 @@ function App() {
         <div className="topbar-right"><span className="day-badge"><span className="live-dot"/> {getRealPhase(now)==='drawing'?'Drawing window':'Voting window'}</span><button className="icon-button notification-btn" title="Notifications" onClick={()=>setModal('notifications')}><Bell size={21}/><span className="unread-dot"/></button><button className="user-pill" onClick={()=>switchView('profile')}><Avatar id="you" size={33}/></button></div>
       </header>
       <main className="content">
-        <div className="demo-strip"><span><Sparkles size={14}/> PROTOTYPE MODE</span><div className="demo-options">{[{id:'live',label:'Live schedule'},{id:'drawing',label:'Draw'},{id:'voting',label:'Vote'},{id:'reveal',label:'Reveal'}].map(item=><button key={item.id} className={demo===item.id?'selected':''} onClick={()=>setDemo(item.id)}>{item.label}</button>)}</div></div>
+        <div className={'demo-strip '+(showDemo?'demo-open':'')}>
+          <button className="demo-toggle" onClick={()=>setShowDemo(v=>!v)} aria-expanded={showDemo}>
+            <span><Sparkles size={13}/> Interactive prototype <span className="demo-current">{demo==='live'?'Live':demo==='drawing'?'Drawing':demo==='voting'?'Voting':'Reveal'}</span></span><ChevronRight size={15}/>
+          </button>
+          {showDemo&&<div className="demo-options">{[{id:'live',label:'Live'},{id:'drawing',label:'Draw'},{id:'voting',label:'Vote'},{id:'reveal',label:'Reveal'}].map(item=><button key={item.id} className={demo===item.id?'selected':''} onClick={()=>{setDemo(item.id);setShowDemo(false);}}>{item.label}</button>)}</div>}
+        </div>
         {view==='home'&&<>
-          <div className="welcome-row"><div><div className="eyebrow"><span className="spark-text">✳</span> {formatDate(now).toUpperCase()}</div><h1>Make something<br/><em>weird. Together.</em></h1><p>Your little corner of the internet, where every day starts with a blank canvas.</p></div><div className="welcome-side"><div className="floating-asterisk">✳</div></div></div>
-          <div className="home-meta"><span><Stack ids={members} size={30}/> <b>{group.name}</b></span><button onClick={()=>setModal('switch')}>Switch circle <ChevronRight size={16}/></button></div>
+          <div className="welcome-row"><div><div className="eyebrow">{formatDate(now).toUpperCase()}</div><h1>Make something<br/><em>weird today.</em></h1><p>Your daily dose of drawing with friends.</p></div><div className="welcome-side"><div className="floating-asterisk">✳</div></div></div>
+          <div className="mobile-stories" aria-label="Your friend circles">
+            <button className="story-item" onClick={()=>setModal('new')}><span className="story-ring story-add"><Plus size={25}/></span><span>New circle</span></button>
+            {db.groups.map((circle, i)=><button key={circle.id} className={'story-item '+(circle.id===group.id?'story-selected':'')} onClick={()=>selectGroup(circle.id)}>
+              <span className="story-ring"><span className={'story-avatar story-avatar-'+(i%4)}>{circle.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase()}</span></span>
+              <span>{circle.name.length>12?circle.name.slice(0,10)+'…':circle.name}</span>
+            </button>)}
+            <button className="story-item" onClick={()=>setModal('join')}><span className="story-ring story-join"><UserRoundPlus size={21}/></span><span>Join circle</span></button>
+          </div>
+          <div className="home-meta"><span>THE DAILY DROP <span className="home-meta-dot">✳</span></span><button onClick={()=>setModal('switch')}>{group.name} <ChevronRight size={15}/></button></div>
           <div className="hero-card">
             <div className="hero-copy"><div className="hero-badges"><span className="tag tag-dark"><span className="pulse-dot"/> TODAY'S DROP</span><span className="tag tag-dark">{theme.label}</span></div><div className="hero-overline">YOUR DAILY CREATIVE CHALLENGE</div><h2>{theme.title}<span>✳</span></h2><p>{theme.subtitle}</p><div className="hero-action"><Button onClick={startDraw} icon={ArrowRight}>{savedSketch?'Draw again':'Start doodling'}</Button><span><Clock3 size={15}/> 7 AM – 7 PM</span></div></div>
             <div className="hero-image"><Illustration variant="city"/><span className="hero-art-credit">IMAGINE THE IMPOSSIBLE / 001</span></div>
@@ -528,7 +543,11 @@ function App() {
         </>}
       </main>
     </div>
-    <nav className="mobile-nav" aria-label="Main navigation">{NAV.map(item=><button key={item.id} className={view===item.id?'selected':''} onClick={()=>switchView(item.id)}><item.icon size={22}/><span>{item.label==='My circles'?'Circles':item.label==='The gallery'?'Gallery':item.label==='Leaderboard'?'Ranks':item.label}</span></button>)}</nav>
+    <nav className="mobile-nav" aria-label="Main navigation">
+      {NAV.slice(0,2).map(item=><button key={item.id} className={view===item.id?'selected':''} onClick={()=>switchView(item.id)}><item.icon size={22} strokeWidth={view===item.id?2.4:1.85}/><span>{item.label==='My circles'?'Circles':item.label}</span></button>)}
+      <button className="nav-create" aria-label="Open drawing studio" onClick={startDraw}><span className="nav-create-icon"><Pencil size={22}/></span><span>Draw</span></button>
+      {NAV.slice(2).map(item=><button key={item.id} className={view===item.id?'selected':''} onClick={()=>switchView(item.id)}><item.icon size={22} strokeWidth={view===item.id?2.4:1.85}/><span>{item.label==='The gallery'?'Gallery':'Ranks'}</span></button>)}
+    </nav>
     <button className="floating-chat" onClick={()=>setShowChat(true)} title="Open group chat"><MessageCircle size={22}/><span>Chat</span></button>
     {showChat&&<div className="chat-drawer-wrap" onPointerDown={e=>{if(e.target===e.currentTarget)setShowChat(false);}}><section className="chat-drawer"><div className="drawer-head"><div><span className="eyebrow">YOUR CIRCLE</span><h2>{group.name}</h2></div><button className="icon-button" onClick={()=>setShowChat(false)}><X size={22}/></button></div><Chat messages={groupChat} text={chatText} onText={setChatText} onSend={sendChat} currentName={db.profile.name}/></section></div>}
     {modal==='new'&&<Modal title="Start a circle" subtitle="The best things happen with your people." onClose={()=>setModal('')}>
