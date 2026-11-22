@@ -1,10 +1,10 @@
-# Draw Together — Esha's branch
+# Formal Operational — Esha's workspace
 
-Collaborative drawing game concept for Pratt's Designing for Kids studio, targeting ages **14–18**.
+A **blank mobile-first React/Vite starter** for our three-person studio team's ideation and implementation experiments.
 
-This branch contains a minimal **React + Vite** mobile-first starter screen, not a finished game. It is intentionally independent of the other teammates' branches.
+**We have not chosen a game, product direction, or user flow yet.** This starter does not implement any game mechanics.
 
-## Run locally
+## Open this branch locally
 
 ```bash
 git clone https://github.com/mail2tarunv-cpu/Formal-Operational-.git
@@ -14,30 +14,30 @@ npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite. Verify production output with `npm run build`.
+Check a production build:
 
-## What we are making
+```bash
+npm run build
+```
 
-1. **Group** — a friend creates a private group and invites others.
-2. **Prompt** — one shared daily theme, but each friend gets a *different* part to draw.
-3. **Draw** — each person draws on their phone, independently.
-4. **Reveal** — the app combines all submitted pieces into a single group picture.
-5. **Share (optional)** — the finished picture can be saved or shared to socials after the group agrees.
+## Where to build
 
-## Where to work
+- `src/App.jsx`: edit or replace the blank starter page.
+- `src/styles.css`: styles for the starter and your experiments.
+- `AGENTS.md`: instructions to give an AI coding assistant; read before coding.
 
-- `src/App.jsx`: current starter page, replace with screens and interaction.
-- `src/styles.css`: global styling, typography, responsive layout.
-- `src/main.jsx`: React entry point.
-- `AGENTS.md`: **read this first when using an AI coding assistant**. Product scope, build order, and team rules live there.
+## Team GitHub workflow
 
-## Team workflow
+- Each teammate works on **their own branch**: `Tarun`, `Madison`, `Esha`.
+- Push your progress to your own branch as often as needed. This automatically updates that branch's Vercel preview.
+- `main` is the team-approved version. **Do not push directly to main**.
+- When something is ready for the team, open a pull request (PR) from your branch into `main`.
+- The other **two** teammates review and approve before merging. This is the team rule; GitHub enforcement is a separate setting.
+- Before requesting reviews, check the feature on your own preview link and run `npm run build`.
+- If everyone experiments separately, compare and decide which approach to bring into `main`.
 
-- `main` is the approved shared version, **not** a scratch branch.
-- Work and push to `Tarun`, `Madison`, or `Esha` as assigned.
-- Open a Pull Request from your branch into `main` when a feature is ready.
-- The **other two teammates** review before merge. Do not merge your own unreviewed work.
-- Preview builds deploy independently to Vercel; the `main` deployment stays production.
-- Coordinate on shared architecture and data shape before introducing a backend.
+## Example starting request to an AI tool
 
-**Project status:** starter screen only. No login, real-time collaboration, drawing editor, or sharing is implemented yet.
+"Read AGENTS.md and README.md. Work only on the Esha branch. We have not settled on a game idea yet. Implement the idea I give you next, test the build, and push the changes to this same branch. Do not push to main."
+
+**Current status:** blank UI starter. No game screens, group flow, prompts, drawing mechanics, or sharing are implemented.
