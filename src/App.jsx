@@ -117,7 +117,7 @@ function Doodl() {
  activeGroupRef.current=group?.id||'';
  const mode=gameMode(group?.player_count);
  const roomReady=Boolean(group&&members.length===group.player_count);
- const canQuickStart=Boolean(group&&board&&group.owner_id===user?.id&&roomReady&&!board.round.quick_started_at&&board.phase==='drawing'&&!board.submissions.length);
+ const canQuickStart=Boolean(group&&board&&group.owner_id===user?.id&&roomReady&&!board.round.quick_started_at&&!board.submissions.length);
  const theme=board?THEMES[board.round.theme_index]:THEMES[0];
  const mine=board?.parts.find(p=>p.user_id===user?.id);
  const prompt={label:theme.prompt[mine?.prompt_index||0],description:theme.description[mine?.prompt_index||0]};
@@ -299,39 +299,31 @@ function Doodl() {
   <main className="live-scroll">
    {error&&<div className="inline-error" role="alert"><span>{error}</span><button onClick={()=>setError('')} aria-label="Dismiss error"><X size={17}/></button></div>}
    {screen==='home'&&<div className="screen home-screen">
-    <div className="eyebrow">{new Intl.DateTimeFormat('en-US',{weekday:'long',month:'long',day:'numeric'}).format(now).toUpperCase()}</div>
-    <h1>Good things<br/><em>start small.</em></h1>
-    {!groups.length?<div className="empty-group"><UsersRound size={40}/><h2>Make something together.</h2><p>One prompt a day. Your favorite people. Nothing public.</p><Btn icon={Plus} onClick={()=>setModal('create')}>Create a circle</Btn><Btn secondary onClick={()=>setModal('join')}>I have an invite code</Btn></div>
-    :<>
-     <div className="story-rail"><button className="story" onClick={()=>setModal('create')}><span className="story-icon"><Plus size={24}/></span><small>New circle</small></button>
-      {groups.map(g=><button key={g.id} className={'story '+(g.id===group?.id?'is-current':'')} onClick={()=>setGroupId(g.id)}><span className="story-icon circle-story"><UsersRound size={24}/></span><small>{g.name}</small></button>)}</div>
-     <div className="overline-row"><span><CalendarDays size={16}/> TODAY'S DROP</span><button onClick={()=>setModal('switch')}>{group?.name}<ChevronDown size={16}/></button></div>
-     {loading?<Waiting/>:board&&<div className="challenge-poster">
-      <div className={"poster-image theme-"+board.round.theme_index} style={board.submissions.find(s=>s.url)?.url?{backgroundImage:"linear-gradient(0deg,rgba(8,8,8,.94),rgba(8,8,8,.1) 90%),url("+board.submissions.find(s=>s.url).url+")"}:undefined}><div><span>THE DAILY DROP · {theme.category}</span><h2>{theme.name}</h2></div></div>
-      <div className="challenge-details"><div className="status-row"><span className="phase-tag"><span/>{phase==='drawing'?'DRAWING OPEN':phase==='voting'?'VOTING OPEN':'ROUND COMPLETE'}</span><span>7 AM – 7 PM / {group?.timezone?.split('/').at(-1).replaceAll('_',' ')}</span></div>
-       {phase==='drawing'?<><h3>Your part: {prompt.label}</h3><p>{prompt.description}</p><Btn icon={Pencil} onClick={()=>switchTab('draw')}>{mySubmission?'Redo your drawing':'Start drawing'}</Btn></>
-       :phase==='voting'?<><h3>Time to vote.</h3><p>Everyone's doodles are in. Choose your favorite before 7 AM tomorrow.</p><Btn icon={Heart} onClick={()=>switchTab('gallery')}>See today's drawings</Btn></>
-       :<><h3>That's a wrap.</h3><p>See what your friends made together and check the results.</p><Btn icon={Images} onClick={()=>switchTab('gallery')}>See the artwork</Btn></>}
-      </div>
-     </div>}
-     <div className="section-heading"><h2>Your circle</h2><button onClick={()=>switchTab('circles')}>See all <ChevronRight size={16}/></button></div>
-     <div className="home-circle" onClick={()=>setModal('members')} role="button" tabIndex={0} onKeyDown={e=>{if(e.key==='Enter')setModal('members')}}><GroupAvatars members={members}/><div><strong>{members.length} of {group?.player_count||3} players</strong><small>{group?.name}</small></div><ChevronRight size={18}/></div>
-     <div className="home-action-grid"><button onClick={()=>switchTab('chat')}><MessageCircle size={22}/><strong>Group chat</strong><small>Catch up with everyone</small><ArrowRight size={16}/></button><button onClick={()=>switchTab('gallery')}><Images size={22}/><strong>Gallery</strong><small>See today's doodles</small><ArrowRight size={16}/></button></div>
-     {previous&&<><div className="section-heading"><h2>Yesterday's reveal</h2></div><div className="previous-card"><div className="previous-heading"><CheckCheck size={22}/><div><strong>{THEMES[previous.theme_index].name}</strong><small>{previous.submissions.length} drawings · sharing needs everyone's approval</small></div></div><Btn secondary icon={Download} onClick={()=>exportArt(previous)} disabled={busy||!previous.submissions.length||((previous.consents?.filter(c=>c.approved).length||0)<members.length)}>Save or share collage</Btn><button className="text-button consent-home" onClick={()=>switchTab('gallery')}>Review sharing permissions <ArrowRight size={14}/></button></div></>}
-    </>}
-   </div>}
-   {screen==='circles'&&<div className="screen">
-    <div className="eyebrow">YOUR PRIVATE ROOMS</div><h1>My circles<span>.</span></h1><p className="screen-subtitle">A private space for you and your friends. No public search.</p>
-    <div className="top-pair"><Btn onClick={()=>setModal('create')} icon={Plus}>Create</Btn><Btn secondary onClick={()=>setModal('join')} icon={UserRoundPlus}>Join with code</Btn></div>
-    <div className="list-section-label">YOUR CIRCLES / {groups.length}</div>
-    {groups.length?<div className="circle-list">{groups.map(g=><button className={'circle-row '+(g.id===group?.id?'selected':'')} key={g.id} onClick={()=>{setGroupId(g.id);switchTab('home')}}><span className="circle-icon"><UsersRound size={24}/></span><span><strong>{g.name}</strong><small>{g.player_count||3} players · Private</small></span><ChevronRight size={18}/></button>)}</div>
-    :<div className="empty-small"><UsersRound size={32}/><h3>No circles yet.</h3><p>Invite a friend and create your first shared canvas.</p></div>}
-    {group&&<><div className="section-heading"><h2>{group.name}</h2><button onClick={()=>setModal('members')}>Members <ChevronRight size={16}/></button></div>
-    <div className="code-card"><span>INVITE CODE</span><strong>{group.invite_code}</strong><p>{group.player_count||3} players total, including you. Join from another device using this code.</p><Btn secondary icon={Share2} onClick={shareCode}>Share invite link</Btn><button className="copy-invite" onClick={copyCode}><Copy size={15}/> Copy code</button></div>
-    <div className="list-section-label">MEMBERS</div><MemberPicker circle={group} members={members} me={user.id} onReport={id=>{setReportTarget(id);setModal('report')}}/>
-    <button className="danger-link" onClick={exitCircle}><Trash2 size={17}/>{group.owner_id===user.id?'Delete circle':'Leave circle'}</button></>}
-   </div>}
-   {screen==='gallery'&&<div className="screen">
+ {!groups.length?<div className="new-player-home">
+  <div className="eyebrow">WELCOME TO DOODL</div><h1>Make something<br/>together.</h1>
+  <p>Draw a little every day, with your people. No sign-in needed.</p>
+  <div className="new-player-art"><Pencil size={65} strokeWidth={1.2}/></div>
+  <Btn icon={Plus} onClick={()=>setModal('create')}>Create room</Btn>
+  <Btn secondary onClick={()=>setModal('join')}>Join with a code</Btn>
+ </div>:<>
+  <div className="today-heading"><div className="eyebrow">{new Intl.DateTimeFormat('en-US',{weekday:'long',month:'short',day:'numeric'}).format(now)}</div><h1>Today</h1><button className="room-members-shortcut" onClick={()=>setModal('members')}><UsersRound size={17}/>{members.length} / {group?.player_count} players <ChevronRight size={17}/></button></div>
+  {loading||!board?<Waiting message="Loading your prompt…"/>:<>
+   <div className="challenge-poster">
+    <div className={'poster-image theme-'+board.round.theme_index}><div><span>TODAY'S PROMPT</span><h2>{theme.name}</h2></div></div>
+    <div className="challenge-details">
+     <div className="status-row"><span className="phase-tag"><span/>{phase==='drawing'?'Drawing':phase==='voting'?'Voting':phase==='revealed'?'Revealed':'Upcoming'}</span><span>{board.round.quick_started_at?'Quick round':'7 AM – 7 PM · '+(group?.timezone?.split('/').at(-1).replaceAll('_',' ')||'Local')}</span></div>
+     {phase==='drawing'?<><h3>{mySubmission?'Your drawing is saved.':'Your part: '+prompt.label}</h3><p>{mySubmission?'Friends’ artwork will be revealed after drawing closes.':prompt.description}</p><Btn icon={mySubmission?Images:Pencil} onClick={()=>switchTab(mySubmission?'gallery':'draw')}>{mySubmission?'View your drawing':'Start drawing'}</Btn>{mySubmission&&<button className="subtle-action" onClick={()=>switchTab('draw')}>Edit drawing</button>}</>:
+     phase==='voting'?<><h3>Pick a favorite.</h3><p>Everyone’s drawing is ready. Choose one before the reveal.</p><Btn icon={Heart} onClick={()=>switchTab('gallery')}>View and vote</Btn></>:
+     phase==='revealed'?<><h3>The reveal is here.</h3><p>{mode==='solo'?'See what you made.':mode==='duo'?'See what you made together.':'See the drawings and results.'}</p><Btn icon={Images} onClick={()=>switchTab('gallery')}>See the reveal</Btn></>:
+     <><h3>Your next prompt is coming.</h3><p>Drawing opens at 7 AM.</p><Btn secondary onClick={()=>switchTab('gallery')}>View past artwork</Btn></>}
+    </div>
+   </div>
+   {!roomReady&&<div className="simple-room-state"><div><strong>Waiting for your people</strong><p>{members.length} of {group.player_count} joined.</p></div><Btn secondary icon={Share2} onClick={shareCode}>Invite</Btn></div>}
+   {canQuickStart&&<div className="quick-round"><div><strong>Want to try a round now?</strong><p>10 minutes to draw; trios then have 5 minutes to vote.</p></div><button disabled={busy} onClick={launchQuickRound}>Start quick round <ArrowRight size={16}/></button></div>}
+  </>}
+ </>}
+ </div>}
+ {screen==='gallery'&&<div className="screen">
     <div className="eyebrow">THE COLLECTION</div><h1>The gallery<span>.</span></h1><p className="screen-subtitle">What everyone made from today's theme.</p>
     {!group?<div className="empty-small"><Images size={33}/><p>Join a circle to see drawings.</p></div>:loading?<Waiting/>:board&&<>
      <div className="gallery-period"><div><span className="phase-tag"><span/>{phase==='drawing'?'DRAWING':phase==='voting'?'VOTING':'REVEALED'}</span><h3>{theme.name}</h3><p>{board.submissions.length} / {members.length} drawings submitted</p></div><Clock3 size={24}/></div>
@@ -353,12 +345,6 @@ function Doodl() {
     <><div className="messages-scroll">{chat.length===0?<div className="empty-chat"><MessageCircle size={32}/><h3>Say something first.</h3><p>This conversation stays in your private circle.</p></div>:chat.map(m=><div className={'message '+(m.user_id===user.id?'mine':'')} key={m.id}>{m.user_id!==user.id&&<Avatar profile={people[m.user_id]} size={31}/>}<div><span className="message-name">{m.user_id===user.id?'You':people[m.user_id]?.display_name||'Artist'}</span><p>{m.body}</p><time>{new Date(m.created_at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</time></div></div>)}</div>
     <form className="message-compose" onSubmit={send}><input value={message} onChange={e=>setMessage(e.target.value)} maxLength={800} placeholder="Message your circle..." aria-label="Message"/><button type="submit" aria-label="Send" disabled={!message.trim()}><Send size={20}/></button></form></>}
    </div>}
-   {screen==='ranks'&&<div className="screen">
-    <div className="eyebrow">THE STANDINGS</div><h1>Leaderboard<span>.</span></h1><p className="screen-subtitle">Points are awarded when a voting round finishes.</p>
-    {group?<><div className="leader-banner"><Trophy size={29}/><div><strong>{group.name}</strong><small>10 points for every vote received</small></div></div>
-     {scores.length?<div className="leader-list">{scores.map((rank,i)=><div key={rank.user_id} className="leader-row"><span className="leader-position">{String(i+1).padStart(2,'0')}</span><Avatar profile={people[rank.user_id]} size={43}/><span className="leader-name">{people[rank.user_id]?.display_name||'Artist'}{rank.user_id===user.id?' (you)':''}</span><strong>{rank.points} <small>pts</small></strong></div>)}</div>:<div className="empty-small"><Trophy size={35}/><p>Scores appear here after voting closes.</p></div>}</>:
-     <div className="empty-small"><Trophy size={35}/><p>Join a circle to start earning points.</p></div>}
-   </div>}
    {screen==='settings'&&<div className="screen">
     <div className="eyebrow">PERSONAL SPACE</div><h1>My profile<span>.</span></h1>
     <div className="profile-card"><div className="profile-picture"><Avatar profile={profile} size={76}/><label className="upload-overlay" htmlFor="avatar-file" aria-label="Upload profile photo"><UploadCloud size={17}/></label><input id="avatar-file" accept="image/jpeg,image/png,image/webp" type="file" disabled={avatarBusy} onChange={changeAvatar}/></div><div><strong>{profile?.display_name||'Artist'}</strong><small>{user.email||'Guest on this device'}</small></div></div>
@@ -371,18 +357,16 @@ function Doodl() {
    </div>}
   </main>
   <nav className="live-tabs" aria-label="Primary navigation">{[
-   {id:'home',icon:Home,label:'Home'},
-   {id:'circles',icon:UsersRound,label:'Circles'},
-   {id:'draw',icon:Pencil,label:'Draw'},
-   {id:'gallery',icon:Images,label:'Gallery'},
-   {id:'ranks',icon:Trophy,label:'Ranks'}
-  ].map(item=><button key={item.id} className={'tab '+(screen===item.id?'selected':'')+' '+(item.id==='draw'?'draw-tab':'')} onClick={()=>{if(item.id==='draw'&&(!group||phase!=='drawing')){alert(!group?'Create or join a circle first.':'Drawing is only open from 7 AM–7 PM.');return;}switchTab(item.id)}} aria-label={item.label}><span className="tab-icon"><item.icon size={22} strokeWidth={screen===item.id?2.4:1.8}/></span><small>{item.label}</small></button>)}</nav>
-  {modal==='create'&&<Modal title="Start a circle" subtitle="Choose how many people can play." onClose={()=>setModal('')}><div className="field-label">PLAYERS</div><div className="player-choice" role="group" aria-label="Number of players">{[1,2,3].map(n=><button key={n} type="button" aria-pressed={playerCount===n} className={playerCount===n?'active':''} onClick={()=>setPlayerCount(n)}><strong>{n}</strong><span>{n===1?'Just me':n===2?'A duo':'A trio'}</span>{playerCount===n&&<Check size={17}/>}</button>)}</div><label className="field-label" htmlFor="circle">CIRCLE NAME</label><input id="circle" className="field-input" maxLength={48} value={newCircle} onChange={e=>setNewCircle(e.target.value)} placeholder="Give your circle a name"/><p className="sheet-help">{playerCount===1?'A private space just for you.':'You count as one player. Invite '+(playerCount-1)+' '+(playerCount===2?'friend':'friends')+' with your code.'}</p><Btn icon={ArrowRight} disabled={busy||newCircle.trim().length<2} onClick={create}>{busy?'Creating…':'Create circle'}</Btn></Modal>}
+  {id:'home',icon:Home,label:'Today'},
+  {id:'gallery',icon:Images,label:'Gallery'},
+  {id:'chat',icon:MessageCircle,label:'Chat'}
+ ].map(item=><button key={item.id} className={'tab '+(screen===item.id?'selected':'')} onClick={()=>switchTab(item.id)} aria-label={item.label}><span className="tab-icon"><item.icon size={22}/></span><small>{item.label}</small></button>)}</nav>
+ {modal==='create'&&<Modal title="Start a circle" subtitle="Choose how many people can play." onClose={()=>setModal('')}><div className="field-label">PLAYERS</div><div className="player-choice" role="group" aria-label="Number of players">{[1,2,3].map(n=><button key={n} type="button" aria-pressed={playerCount===n} className={playerCount===n?'active':''} onClick={()=>setPlayerCount(n)}><strong>{n}</strong><span>{n===1?'Just me':n===2?'A duo':'A trio'}</span>{playerCount===n&&<Check size={17}/>}</button>)}</div><label className="field-label" htmlFor="circle">CIRCLE NAME</label><input id="circle" className="field-input" maxLength={48} value={newCircle} onChange={e=>setNewCircle(e.target.value)} placeholder="Give your circle a name"/><p className="sheet-help">{playerCount===1?'A private space just for you.':'You count as one player. Invite '+(playerCount-1)+' '+(playerCount===2?'friend':'friends')+' with your code.'}</p><Btn icon={ArrowRight} disabled={busy||newCircle.trim().length<2} onClick={create}>{busy?'Creating…':'Create circle'}</Btn></Modal>}
   {modal==='created'&&group&&<Modal title="Circle created." subtitle="Your private room is ready." onClose={()=>setModal('')}><div className="created-room"><div className="created-check"><Check size={23}/></div><h3>{group.name}</h3><p>{group.player_count===1?'A circle just for you.':'Room for '+group.player_count+' players, including you.'}</p></div><div className="field-label">PRIVATE INVITE CODE</div><div className="created-code" role="status">{group.invite_code}</div><button className="copy-invite" onClick={copyCode}><Copy size={16}/> Copy code</button><p className="sheet-help">{group.player_count===1?'Start your drawing whenever the round opens.':'Send the code or link to friends. They can join without signing in.'}</p>{group.player_count>1&&<Btn icon={Share2} onClick={shareCode}>Share invite code</Btn>}<Btn secondary onClick={()=>{setModal('');setScreen('home')}}>Go to my circle <ArrowRight size={16}/></Btn></Modal>}
    {modal==='join'&&<Modal title="Join a circle" subtitle="Enter the invitation code from your friend." onClose={()=>setModal('')}><label className="field-label" htmlFor="invite">INVITATION CODE</label><input className="field-input invite-code-input" id="invite" value={joinCode} onChange={e=>setJoinCode(e.target.value.toUpperCase())} maxLength={16} placeholder="ENTER CODE" autoCapitalize="characters"/><Btn icon={ArrowRight} disabled={busy||joinCode.trim().length!==16} onClick={join}>Join circle</Btn></Modal>}
-  {modal==='switch'&&<Modal title="Switch circle" onClose={()=>setModal('')}><div className="circle-list">{groups.map(g=><button key={g.id} className={'circle-row '+(g.id===group?.id?'selected':'')} onClick={()=>{setGroupId(g.id);setModal('')}}><span className="circle-icon"><UsersRound size={22}/></span><span><strong>{g.name}</strong><small>{g.player_count||3} players</small></span>{g.id===group?.id?<CheckCircle2 size={19}/>:<ChevronRight size={18}/>}</button>)}</div><button className="sheet-link" onClick={()=>setModal('create')}><Plus size={17}/> Make another circle</button></Modal>}
-  {modal==='members'&&<Modal title={group?.name||'Members'} subtitle="People in this circle" onClose={()=>setModal('')}><MemberPicker circle={group} members={members} me={user.id} onReport={id=>{setReportTarget(id);setModal('report')}}/><div className="sheet-footer"><Btn secondary icon={Share2} onClick={shareCode}>Share invitation</Btn></div></Modal>}
-  {modal==='drawing'&&selectedDrawing&&<Modal title={people[selectedDrawing.user_id]?.display_name||'Doodle'} subtitle="Submitted artwork" onClose={()=>setModal('')}>
+  {modal==='switch'&&<Modal title="Your rooms" subtitle="Choose where to draw." onClose={()=>setModal('')}><div className="circle-list">{groups.map(g=><button key={g.id} className={'circle-row '+(g.id===group?.id?'selected':'')} onClick={()=>{setGroupId(g.id);setModal('');setScreen('home')}}><span className="circle-icon"><UsersRound size={22}/></span><span><strong>{g.name}</strong><small>{g.player_count} players</small></span>{g.id===group?.id?<CheckCircle2 size={18}/>:<ChevronRight size={18}/>}</button>)}</div><div className="room-menu-actions"><Btn icon={Plus} onClick={()=>setModal('create')}>Create room</Btn><Btn secondary onClick={()=>setModal('join')}>Join with code</Btn>{group&&<button className="sheet-link" onClick={()=>setModal('members')}>Room details <ChevronRight size={15}/></button>}</div></Modal>}
+ {modal==='members'&&group&&<Modal title={group.name} subtitle={members.length+' of '+group.player_count+' players'} onClose={()=>setModal('')}><div className="code-card"><span>ROOM CODE</span><strong>{group.invite_code}</strong><p>Only people with this code can join.</p><Btn secondary icon={Share2} onClick={shareCode}>Share invite</Btn><button className="copy-invite" onClick={copyCode}><Copy size={15}/> Copy code</button></div><div className="list-section-label">PLAYERS</div><MemberPicker circle={group} members={members} me={user.id} onReport={id=>{setReportTarget(id);setModal('report')}}/><button className="danger-link" onClick={exitCircle}><Trash2 size={16}/>{group.owner_id===user.id?'Delete room':'Leave room'}</button></Modal>}
+ {modal==='drawing'&&selectedDrawing&&<Modal title={people[selectedDrawing.user_id]?.display_name||'Doodle'} subtitle="Submitted artwork" onClose={()=>setModal('')}>
     <div className="detail-art">{selectedDrawing.url?<img src={selectedDrawing.url} alt="Selected friend's drawing"/>:<ImageIcon size={38}/>}</div>
     <div className="detail-caption"><Avatar profile={people[selectedDrawing.user_id]} size={35}/><strong>{people[selectedDrawing.user_id]?.display_name||'Artist'}</strong>
      {selectedDrawing.user_id!==user.id&&<button className="flag-icon" onClick={()=>{setReportTarget(selectedDrawing.id);setModal('report-art')}} aria-label="Report drawing"><Flag size={17}/></button>}
@@ -392,7 +376,8 @@ function Doodl() {
     <form className="comment-compose" onSubmit={sendComment}><input value={comment} onChange={e=>setComment(e.target.value)} maxLength={350} placeholder="Leave a comment..." aria-label="Comment"/><button type="submit" disabled={!comment.trim()}><Send size={19}/></button></form>
     {mode==='trio'&&phase==='voting'&&selectedDrawing.user_id!==user.id&&<Btn icon={Heart} onClick={()=>{vote(selectedDrawing);setModal('')}}>{board.myVote===selectedDrawing.id?'Change vote':'Vote for this drawing'}</Btn>}</>}
    </Modal>}
-  {(modal==='report'||modal==='report-art')&&<Modal title="Report content" subtitle="Help us keep circles safer." onClose={()=>setModal('')}><label className="field-label" htmlFor="reason">WHAT HAPPENED?</label><textarea id="reason" className="field-input" rows={4} maxLength={500} value={reportReason} onChange={e=>setReportReason(e.target.value)} placeholder="Tell us what is wrong…"/><Btn icon={Flag} onClick={async()=>{if(modal==='report-art'){try{await reportContent(user.id,reportTarget,'drawing',reportReason);setModal('');alert('Report submitted.')}catch(e){handleError(e)}}else submitReport()}}>Submit report</Btn>{modal==='report'&&<button className="sheet-link" onClick={()=>block(reportTarget)}><Ban size={17}/> Block this person</button>}</Modal>}
+  {modal==='name'&&<Modal title="What should we call you?" subtitle="Your friends will see this name." onClose={()=>{sessionStorage.setItem('doodl-name-prompt-'+user.id,'1');setModal('')}}><label className="field-label" htmlFor="first-name">YOUR NAME</label><input id="first-name" className="field-input" maxLength={32} value={displayName} onChange={e=>setDisplayName(e.target.value)} placeholder="Your name"/><Btn icon={ArrowRight} disabled={busy||displayName.trim().length<2} onClick={saveProfile}>Continue</Btn><button className="sheet-link" onClick={()=>{sessionStorage.setItem('doodl-name-prompt-'+user.id,'1');setModal('')}}>Not now</button></Modal>}
+ {(modal==='report'||modal==='report-art')&&<Modal title="Report content" subtitle="Help us keep circles safer." onClose={()=>setModal('')}><label className="field-label" htmlFor="reason">WHAT HAPPENED?</label><textarea id="reason" className="field-input" rows={4} maxLength={500} value={reportReason} onChange={e=>setReportReason(e.target.value)} placeholder="Tell us what is wrong…"/><Btn icon={Flag} onClick={async()=>{if(modal==='report-art'){try{await reportContent(user.id,reportTarget,'drawing',reportReason);setModal('');alert('Report submitted.')}catch(e){handleError(e)}}else submitReport()}}>Submit report</Btn>{modal==='report'&&<button className="sheet-link" onClick={()=>block(reportTarget)}><Ban size={17}/> Block this person</button>}</Modal>}
   {toast&&<div className="global-notice" role="status">{toast}</div>}
  </div>;
 }
