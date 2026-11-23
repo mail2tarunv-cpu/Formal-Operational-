@@ -182,7 +182,7 @@ function Doodl() {
   setProfileLoading(true);
   try{const p=await readProfile(user.id);let avatar_url='';
    if(p.avatar_path){const {signedAvatarUrl}=await import('./lib/client.js');avatar_url=await signedAvatarUrl(p.avatar_path).catch(()=>'')}
-   setProfile({...p,avatar_url});setDisplayName(p.display_name)
+   setProfile({...p,avatar_url});setDisplayName(isGuestName(p.display_name)?'':p.display_name)
   }finally{setProfileLoading(false)}
  },[user?.id]);
  useEffect(()=>{
@@ -334,7 +334,7 @@ function Doodl() {
   <Btn secondary onClick={()=>setModal('join')}>Join with a code</Btn>
  </div>:<>
   <div className="today-heading"><div className="eyebrow">{new Intl.DateTimeFormat('en-US',{weekday:'long',month:'short',day:'numeric'}).format(now)}</div><h1>Today</h1><button className="room-members-shortcut" onClick={()=>setModal('members')}><UsersRound size={17}/>{members.length} / {group?.player_count} players <ChevronRight size={17}/></button></div>
-  {loading||!board?<Waiting message="Loading your prompt…"/>:<>
+  {loading?<Waiting message="Loading your prompt…"/>:!board?<div className="load-retry"><strong>Couldn't load this room.</strong><p>Check your connection and try again.</p><Btn secondary icon={RotateCw} onClick={()=>refreshGroup()}>Retry</Btn></div>:<>
    <div className="challenge-poster">
     <div className={'poster-image theme-'+board.round.theme_index}><ThemeMark index={board.round.theme_index}/><div><span>TODAY'S PROMPT</span><h2>{theme.name}</h2></div></div>
     <div className="challenge-details">
@@ -352,7 +352,7 @@ function Doodl() {
  </div>}
  {screen==='gallery'&&<div className="screen gallery-screen">
  <div className="eyebrow">YOUR ARTWORK</div><h1>Gallery</h1>
- {!group?<div className="empty-small"><Images size={32}/><p>Join a room to see drawings.</p></div>:loading||!board?<Waiting message="Loading your gallery…"/>:<>
+ {!group?<div className="empty-small"><Images size={32}/><p>Join a room to see drawings.</p></div>:loading?<Waiting message="Loading your gallery…"/>:!board?<div className="load-retry"><strong>Couldn't load the gallery.</strong><p>Try refreshing your room.</p><Btn secondary icon={RotateCw} onClick={()=>refreshGroup()}>Retry</Btn></div>:<>
   <div className="gallery-period"><div><span className="phase-tag"><span/>{phase==='drawing'?'Drawing':phase==='voting'?'Voting':phase==='revealed'?'Revealed':'Upcoming'}</span><h3>{theme.name}</h3><p>{phase==='drawing'?'Your friends’ artwork stays hidden for now.':board.submissions.length+' drawing'+(board.submissions.length===1?'':'s')}</p></div></div>
   {phase==='drawing'&&<p className="helper-note"><LockKeyhole size={16}/> Only your drawing is visible until the reveal.</p>}
   {board.submissions.length===0?<div className="empty-small"><Pencil size={32}/><h3>No drawings here yet.</h3><p>{phase==='drawing'?'Make your first drawing.':'Your next round is around the corner.'}</p>{phase==='drawing'&&!drawingExpired&&<Btn onClick={()=>switchTab('draw')} icon={Pencil}>Draw now</Btn>}</div>:
