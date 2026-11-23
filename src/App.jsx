@@ -1,4 +1,4 @@
-import React, {useCallback,useEffect,useMemo,useState} from 'react';
+import React, {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import { ArrowLeft, ArrowRight, Bell, Check, CheckCircle2, ChevronDown, ChevronRight, CircleHelp,
  Copy, Download, Ellipsis, Eye, Heart, Home, Image as ImageIcon, Images, Info, LockKeyhole,
  LogOut, MessageCircle, Pencil, Plus, Send, Settings, Share2, Shield, SlidersHorizontal,
@@ -6,12 +6,12 @@ import { ArrowLeft, ArrowRight, Bell, Check, CheckCircle2, ChevronDown, ChevronR
  Clock3, CalendarDays, RotateCw, Play, Palette, CheckCheck
 } from 'lucide-react';
 import Canvas from './components/Canvas.jsx';
-import {enablePush,disablePush} from './lib/push.js';
+import {canShareRound,contributed,gameMode,isGuestName} from './lib/game.js';
 import {supabase,backendConfigured,groupDate,THEMES,explainError,check} from './lib/client.js';
 import {
  readProfile,updateProfile,allProfiles,uploadAvatar,readCircles,createCircle,joinCircle,leaveCircle,
  getMembers,loadRound,getPreviousRound,submitDrawing,castVote,approveSharing,leaderboard,listMessages,sendMessage,
- listComments,postComment,reportContent,blockUser,watchCircle
+ listComments,postComment,reportContent,blockUser,watchCircle,startDrawingSession,startQuickRound,canExportRound
 } from './lib/data.js';
 
 const IconBtn=({icon:Icon,label,onClick,active=false})=><button type="button" className={'icon-btn '+(active?'active':'')} aria-label={label} title={label} onClick={onClick}><Icon size={21}/></button>;
@@ -103,7 +103,7 @@ function Doodl() {
  const[groups,setGroups]=useState([]),[groupId,setGroupId]=useState('');
  const[screen,setScreen]=useState('home'),[modal,setModal]=useState('');
  const[busy,setBusy]=useState(false),[error,setError]=useState(''),[toast,setToast]=useState('');
- const[members,setMembers]=useState([]),[board,setBoard]=useState(null),[previous,setPrevious]=useState(null);
+ const[members,setMembers]=useState([]),[loadedBoard,setBoard]=useState(null),[previous,setPrevious]=useState(null);
  const[chat,setChat]=useState([]),[scores,setScores]=useState([]);
  const[newCircle,setNewCircle]=useState(''),[playerCount,setPlayerCount]=useState(3),[joinCode,setJoinCode]=useState('');
  const initialInvite=useMemo(()=>new URLSearchParams(window.location.search).get('join')?.toUpperCase().replace(/[^0-9A-F]/g,'').slice(0,16)||'',[]);
@@ -111,13 +111,18 @@ function Doodl() {
  const[displayName,setDisplayName]=useState(''),[now,setNow]=useState(new Date()),[avatarBusy,setAvatarBusy]=useState(false);
  const[reportTarget,setReportTarget]=useState(null),[reportReason,setReportReason]=useState('');
  const[loading,setLoading]=useState(false),[profileLoading,setProfileLoading]=useState(false);
- const[pushEnabled,setPushEnabled]=useState(false);
+ const activeGroupRef=useRef('');
  const group=groups.find(g=>g.id===groupId)||null;
+ const board=loadedBoard?.round?.circle_id===groupId?loadedBoard:null;
+ activeGroupRef.current=group?.id||'';
+ const mode=gameMode(group?.player_count);
+ const roomReady=Boolean(group&&members.length===group.player_count);
+ const canQuickStart=Boolean(group&&board&&group.owner_id===user?.id&&roomReady&&!board.round.quick_started_at&&board.phase==='drawing'&&!board.submissions.length);
  const theme=board?THEMES[board.round.theme_index]:THEMES[0];
  const mine=board?.parts.find(p=>p.user_id===user?.id);
  const prompt={label:theme.prompt[mine?.prompt_index||0],description:theme.description[mine?.prompt_index||0]};
  const mySubmission=board?.submissions.find(s=>s.user_id===user?.id);
- const phase=board?.phase||'drawing';
+ const phase=board?.phase||'upcoming';
  const people=useMemo(()=>Object.fromEntries(members.map(m=>[m.user_id,m.profile])),[members]);
  const handleError=(e)=>{setError(explainError(e));};
  const alert=(text)=>setToast(text);
@@ -141,7 +146,7 @@ function Doodl() {
   window.history.replaceState(null,'',window.location.pathname);
  },[user?.id,initialInvite]);
  useEffect(()=>{const interval=setInterval(()=>setNow(new Date()),30000);return()=>clearInterval(interval)},[]);
- useEffect(()=>{if('serviceWorker' in navigator)navigator.serviceWorker.getRegistration('/').then(reg=>reg?.pushManager?.getSubscription()).then(sub=>setPushEnabled(Boolean(sub))).catch(()=>{});},[]);
+ 
  useEffect(()=>{if(screen==='draw'&&board&&board.phase!=='drawing')setScreen('gallery');},[screen,board?.phase]);
  const refreshCircles=useCallback(async()=>{
   if(!user)return;
@@ -158,24 +163,33 @@ function Doodl() {
    setProfile({...p,avatar_url});setDisplayName(p.display_name)
   }finally{setProfileLoading(false)}
  },[user?.id]);
+ useEffect(()=>{
+  if(profile&&user&&isGuestName(profile.display_name)&&!initialInvite&&!sessionStorage.getItem('doodl-name-prompt-'+user.id))setModal('name');
+ },[profile?.display_name,user?.id,initialInvite]);
  useEffect(()=>{if(!user){setGroups([]);setProfile(null);setBoard(null);return}
   Promise.all([refreshProfile(),refreshCircles()]).catch(handleError);
  },[user?.id,refreshProfile,refreshCircles]);
  const refreshGroup=useCallback(async(silent=false)=>{
   if(!group||!user)return;
+  const requested=group.id;
   if(!silent)setLoading(true);
   try{
-   const [m,b,msg,rank]=await Promise.all([
-     getMembers(group.id),loadRound(group.id,user.id),listMessages(group.id),leaderboard(group.id)
-   ]);
-   const prior=await getPreviousRound(group.id,b.round.day);
+   const [m,b,msg,rank]=await Promise.all([getMembers(requested),loadRound(requested,user.id),listMessages(requested),group.player_count===3?leaderboard(requested):Promise.resolve([])]);
+   const prior=await getPreviousRound(requested,b.round.day);
+   if(activeGroupRef.current!==requested)return;
    setMembers(m);setBoard(b);setChat(msg);setScores(rank);setPrevious(prior);
-  }catch(e){handleError(e)}finally{if(!silent)setLoading(false)}
- },[group?.id,user?.id]);
- useEffect(()=>{if(!group)return;refreshGroup();const update=()=>refreshGroup(true);
-  const stop=watchCircle(group.id,update);const int=setInterval(update,60000);
-  return()=>{stop();clearInterval(int)};
- },[group?.id,refreshGroup]);
+  }catch(e){if(activeGroupRef.current===requested)handleError(e)}
+  finally{if(!silent&&activeGroupRef.current===requested)setLoading(false)}
+ },[group?.id,group?.player_count,user?.id]);
+ useEffect(()=>{setBoard(null);setMembers([]);setChat([]);setScores([]);setPrevious(null)},[groupId]);
+ useEffect(()=>{
+  if(!group)return;
+  refreshGroup();
+  const update=()=>refreshGroup(true);
+  const stop=watchCircle(group.id,update,board?.round?.id);
+  const interval=setInterval(update,20000);
+  return()=>{stop();clearInterval(interval)};
+ },[group?.id,refreshGroup,board?.round?.id]);
  const switchTab=(name)=>{setScreen(name);setModal('');setError('')};
  const create=async()=>{
   if(newCircle.trim().length<2)return alert('Give your circle a name.');
@@ -188,11 +202,18 @@ function Doodl() {
   setBusy(true);try{const id=await joinCircle(joinCode.trim().toUpperCase());await refreshCircles();setGroupId(id);setJoinCode('');setModal('');setScreen('home');alert('You joined the circle.')}
   catch(e){handleError(e)}finally{setBusy(false)}
  };
+ const startSession=durationSeconds=>startDrawingSession(board.round.id,durationSeconds);
+ const launchQuickRound=async()=>{
+  if(!group||!canQuickStart)return;
+  try{setBusy(true);await startQuickRound(group.id);await refreshGroup(true);alert('Quick round started. You have 10 minutes to draw.');}
+  catch(e){handleError(e)}finally{setBusy(false)}
+ };
  const onSubmit=async blob=>{
   await submitDrawing(board.round.id,group.id,user.id,blob,mySubmission?.storage_path);
   await refreshGroup(true);setScreen('gallery');alert('Drawing uploaded to your circle.');
  };
  const vote=async item=>{
+  if(mode!=='trio')return;
   try{await castVote(board.round.id,item.id);await refreshGroup(true);alert('Your vote is saved.')}
   catch(e){handleError(e)}
  };
@@ -229,8 +250,8 @@ function Doodl() {
  };
  const exportArt=async(round)=>{
   if(!round?.submissions?.length)return alert('No drawings to export.');
-  const approved=round.consents?.filter(c=>c.approved).map(c=>c.user_id)||[];
-  if(members.some(m=>!approved.includes(m.user_id)))return alert('Every artist must approve group sharing first.');
+  if(!canShareRound(round))return alert('Every contributing artist must approve sharing first.');
+  if(!(await canExportRound(round.id)))return alert('Sharing approval changed. Refresh the gallery.');
   try{
    setBusy(true);const blob=await composeArtwork(THEMES[round.theme_index],members,round.submissions);
    const file=new File([blob],'our-doodl.png',{type:'image/png'});
@@ -244,7 +265,7 @@ function Doodl() {
   catch(e){handleError(e)}
  };
  const saveProfile=async()=>{if(displayName.trim().length<2)return alert('Please enter at least two characters.');
-  try{setBusy(true);await updateProfile(user.id,{display_name:displayName.trim()});await refreshProfile();alert('Profile updated.')}
+  try{setBusy(true);await updateProfile(user.id,{display_name:displayName.trim()});sessionStorage.setItem('doodl-name-prompt-'+user.id,'1');await refreshProfile();setModal(m=>m==='name'?'':m);alert('Name saved.')}
   catch(e){handleError(e)}finally{setBusy(false)}
  };
  const changeAvatar=async e=>{const file=e.target.files?.[0];if(!file)return;setAvatarBusy(true);
@@ -261,26 +282,19 @@ function Doodl() {
   try{await blockUser(user.id,userId);await refreshGroup(true);setModal('');alert('Person blocked.')}
   catch(e){handleError(e)}
  };
- const togglePush=async()=>{
-  setBusy(true);
-  try{
-   if(pushEnabled){await disablePush(user.id);setPushEnabled(false);alert('Reminders disabled on this device.');}
-   else{await enablePush(user.id,group?.timezone);setPushEnabled(true);alert('Daily notifications enabled on this device.');}
-  }catch(e){handleError(e)}finally{setBusy(false)}
- };
  const exitCircle=async()=>{
   if(!window.confirm(group?.owner_id===user.id?'Delete this circle for everyone?':'Leave this circle?'))return;
-  try{await leaveCircle(group.id,group.owner_id===user.id);setModal('');setScreen('circles');await refreshCircles();alert('Circle updated.')}
+  try{await leaveCircle(group.id,group.owner_id===user.id);setModal('');setScreen('home');await refreshCircles();alert('Circle updated.')}
   catch(e){handleError(e)}
  };
  if(!backendConfigured)return <SetupRequired/>;
  if(user===undefined)return <Waiting message="Opening your studio…"/>;
  if(!user)return <GuestUnavailable error={guestError} onRetry={bootGuest}/>;
- if(screen==='draw'&&group&&board?.phase==='drawing')return <><Canvas key={board.round.id+user.id} roundId={board.round.id} userId={user.id} prompt={prompt} theme={theme} existing={mySubmission} onClose={()=>switchTab('home')} onSubmit={onSubmit} onMessage={alert}/>{toast&&<div className="global-notice">{toast}</div>}</>;
+ if(screen==='draw'&&group&&board?.phase==='drawing')return <><Canvas key={board.round.id+user.id} roundId={board.round.id} userId={user.id} prompt={prompt} theme={theme} existing={mySubmission} session={board.session} onStartSession={startSession} onClose={()=>switchTab('home')} onSubmit={onSubmit} onMessage={alert}/>{toast&&<div className="global-notice">{toast}</div>}</>;
  return <div className="live-app">
-  <div className="live-device-clock" aria-hidden="true"><span>9:41</span><span>●● ◖▰</span></div>
+  
   <header className="live-topbar"><button className="wordmark" onClick={()=>switchTab('home')}>doodl<span>.</span></button>
-   <div className="live-top-actions"><IconBtn icon={Bell} label="Notifications" onClick={()=>setModal('notifications')}/><button className="avatar-button" onClick={()=>switchTab('settings')} aria-label="Profile"><Avatar profile={profile} size={34}/></button></div>
+   <div className="live-top-actions"><button className="top-room-switch" onClick={()=>setModal('switch')} aria-label="Select room">{group?<><span>{group.name}</span><ChevronDown size={15}/></>:<><span>Rooms</span><Plus size={15}/></>}</button><button className="avatar-button" onClick={()=>switchTab('settings')} aria-label="Profile"><Avatar profile={profile} size={34}/></button></div>
   </header>
   <main className="live-scroll">
    {error&&<div className="inline-error" role="alert"><span>{error}</span><button onClick={()=>setError('')} aria-label="Dismiss error"><X size={17}/></button></div>}
@@ -351,30 +365,7 @@ function Doodl() {
     <label className="field-label" htmlFor="displayname">DISPLAY NAME</label><input className="field-input" id="displayname" maxLength={32} value={displayName} onChange={e=>setDisplayName(e.target.value)} placeholder="Your name"/><Btn onClick={saveProfile} disabled={busy||profileLoading} icon={Check}>Save profile</Btn>
     <div className="settings-section"><div className="section-heading"><h2>Privacy and account</h2></div>
      <div className="setting-item"><Shield size={19}/><div><strong>Private circles</strong><small>Your content is only available to members of your circles.</small></div></div>
-     <div className="setting-item"><Bell size={19}/><div><strong>Daily notifications</strong><small>Get 7 AM drawing and 7 PM voting reminders when the push server is configured.</small></div><button className="text-button" disabled={busy||!import.meta.env.VITE_VAPID_PUBLIC_KEY} onClick={togglePush}>{!import.meta.env.VITE_VAPID_PUBLIC_KEY?'Not set up':pushEnabled?'Disable':'Enable'}</button></div>
-     <div className="guest-device-note"><LockKeyhole size={18}/><p>This browser remembers your guest profile. Clearing browser data loses your original player. Joining with a code from another browser creates a separate player.</p></div>
-    </div><p className="helper-note">Doodl does not provide public user discovery. Never share private group codes publicly.</p>
-   </div>}
-  </main>
-  <nav className="live-tabs" aria-label="Primary navigation">{[
-   {id:'home',icon:Home,label:'Home'},
-   {id:'circles',icon:UsersRound,label:'Circles'},
-   {id:'draw',icon:Pencil,label:'Draw'},
-   {id:'gallery',icon:Images,label:'Gallery'},
-   {id:'ranks',icon:Trophy,label:'Ranks'}
-  ].map(item=><button key={item.id} className={'tab '+(screen===item.id?'selected':'')+' '+(item.id==='draw'?'draw-tab':'')} onClick={()=>{if(item.id==='draw'&&(!group||phase!=='drawing')){alert(!group?'Create or join a circle first.':'Drawing is only open from 7 AM–7 PM.');return;}switchTab(item.id)}} aria-label={item.label}><span className="tab-icon"><item.icon size={22} strokeWidth={screen===item.id?2.4:1.8}/></span><small>{item.label}</small></button>)}</nav>
-  {modal==='create'&&<Modal title="Start a circle" subtitle="Choose how many people can play." onClose={()=>setModal('')}><div className="field-label">PLAYERS</div><div className="player-choice" role="group" aria-label="Number of players">{[1,2,3].map(n=><button key={n} type="button" aria-pressed={playerCount===n} className={playerCount===n?'active':''} onClick={()=>setPlayerCount(n)}><strong>{n}</strong><span>{n===1?'Just me':n===2?'A duo':'A trio'}</span>{playerCount===n&&<Check size={17}/>}</button>)}</div><label className="field-label" htmlFor="circle">CIRCLE NAME</label><input id="circle" className="field-input" maxLength={48} value={newCircle} onChange={e=>setNewCircle(e.target.value)} placeholder="Give your circle a name"/><p className="sheet-help">{playerCount===1?'A private space just for you.':'You count as one player. Invite '+(playerCount-1)+' '+(playerCount===2?'friend':'friends')+' with your code.'}</p><Btn icon={ArrowRight} disabled={busy||newCircle.trim().length<2} onClick={create}>{busy?'Creating…':'Create circle'}</Btn></Modal>}
-  {modal==='created'&&group&&<Modal title="Circle created." subtitle="Your private room is ready." onClose={()=>setModal('')}><div className="created-room"><div className="created-check"><Check size={23}/></div><h3>{group.name}</h3><p>{group.player_count===1?'A circle just for you.':'Room for '+group.player_count+' players, including you.'}</p></div><div className="field-label">PRIVATE INVITE CODE</div><div className="created-code" role="status">{group.invite_code}</div><button className="copy-invite" onClick={copyCode}><Copy size={16}/> Copy code</button><p className="sheet-help">{group.player_count===1?'Start your drawing whenever the round opens.':'Send the code or link to friends. They can join without signing in.'}</p>{group.player_count>1&&<Btn icon={Share2} onClick={shareCode}>Share invite code</Btn>}<Btn secondary onClick={()=>{setModal('');setScreen('home')}}>Go to my circle <ArrowRight size={16}/></Btn></Modal>}
-   {modal==='join'&&<Modal title="Join a circle" subtitle="Enter the invitation code from your friend." onClose={()=>setModal('')}><label className="field-label" htmlFor="invite">INVITATION CODE</label><input className="field-input invite-code-input" id="invite" value={joinCode} onChange={e=>setJoinCode(e.target.value.toUpperCase())} maxLength={16} placeholder="ENTER CODE" autoCapitalize="characters"/><Btn icon={ArrowRight} disabled={busy||joinCode.trim().length!==16} onClick={join}>Join circle</Btn></Modal>}
-  {modal==='switch'&&<Modal title="Switch circle" onClose={()=>setModal('')}><div className="circle-list">{groups.map(g=><button key={g.id} className={'circle-row '+(g.id===group?.id?'selected':'')} onClick={()=>{setGroupId(g.id);setModal('')}}><span className="circle-icon"><UsersRound size={22}/></span><span><strong>{g.name}</strong><small>{g.player_count||3} players</small></span>{g.id===group?.id?<CheckCircle2 size={19}/>:<ChevronRight size={18}/>}</button>)}</div><button className="sheet-link" onClick={()=>setModal('create')}><Plus size={17}/> Make another circle</button></Modal>}
-  {modal==='members'&&<Modal title={group?.name||'Members'} subtitle="People in this circle" onClose={()=>setModal('')}><MemberPicker circle={group} members={members} me={user.id} onReport={id=>{setReportTarget(id);setModal('report')}}/><div className="sheet-footer"><Btn secondary icon={Share2} onClick={shareCode}>Share invitation</Btn></div></Modal>}
-  {modal==='drawing'&&selectedDrawing&&<Modal title={people[selectedDrawing.user_id]?.display_name||'Doodle'} subtitle="Submitted artwork" onClose={()=>setModal('')}>
-    <div className="detail-art">{selectedDrawing.url?<img src={selectedDrawing.url} alt="Selected friend's drawing"/>:<ImageIcon size={38}/>}</div>
-    <div className="detail-caption"><Avatar profile={people[selectedDrawing.user_id]} size={35}/><strong>{people[selectedDrawing.user_id]?.display_name||'Artist'}</strong>
-     {selectedDrawing.user_id!==user.id&&<button className="flag-icon" onClick={()=>{setReportTarget(selectedDrawing.id);setModal('report-art')}} aria-label="Report drawing"><Flag size={17}/></button>}
-    </div>
-    <h3 className="detail-section">Comments</h3>
-    <div className="comments-list">{comments.length?comments.map(c=><div className="comment-item" key={c.id}><Avatar profile={people[c.user_id]} size={31}/><div><strong>{people[c.user_id]?.display_name||'Artist'}</strong><p>{c.body}</p></div></div>):<p className="sheet-help">No comments yet. Say something kind.</p>}</div>
+     ):<p className="sheet-help">No comments yet. Say something kind.</p>}</div>
     <form className="comment-compose" onSubmit={sendComment}><input value={comment} onChange={e=>setComment(e.target.value)} maxLength={350} placeholder="Leave a comment..." aria-label="Comment"/><button type="submit" disabled={!comment.trim()}><Send size={19}/></button></form>
     {phase==='voting'&&selectedDrawing.user_id!==user.id&&<Btn icon={Heart} onClick={()=>{vote(selectedDrawing);setModal('')}}>{board.myVote===selectedDrawing.id?'Change vote':'Vote for this drawing'}</Btn>}
    </Modal>}
