@@ -1,4 +1,4 @@
-# Doodl — full multiplayer app code
+# Doodl — guest drawing rooms
 
 **Branch:** Tarun (do not merge into main without Madison and Esha's review)
 
@@ -8,8 +8,8 @@ This branch replaces the old browser-only demo with code for a real multi-user a
 
 ## Built into the app
 
-- Passwordless email sign-in (email link or OTP) and personal profile with uploaded profile photos.
-- Create a private group (up to 8) or duo (2); join using a high-entropy invitation code.
+- Automatic guest access through Supabase anonymous identities (no email or password), optional profile name and avatar.
+- Create 1-, 2-, or 3-player private rooms; join on another device with a 16-character code or `?join=CODE` link.
 - Unique per-member part prompts from a daily shared theme. Groups have a saved timezone.
 - 7 AM–7 PM drawing time, 7 PM–next 7 AM voting, then the previous day's reveal.
 - Pointer/touch canvas: pen, marker, eraser, colors, brush size, undo/redo, clear, pause/resume 5/7/10-minute sessions, draft recovery, PNG upload.
@@ -19,15 +19,15 @@ This branch replaces the old browser-only demo with code for a real multi-user a
 - Report content, block members' messages, leave or delete circles; private artwork files with signed URLs.
 - Mobile-width UI and installable manifest.
 
-## Connecting the backend (NOT YET DONE)
+## Backend connection (Tarun preview only)
 
-1. Provision a **new dedicated Supabase project** for Doodl. Do not use unrelated existing databases.
-2. Apply [database migration](supabase/migrations/20261122_doodl_initial.sql) to that project.
-3. In Vercel for this branch's Preview environment, set:
+1. Doodl has a dedicated Supabase project (`efhibksyoztceeyvfysn`).
+2. The initial [database migration](supabase/migrations/20261122_doodl_initial.sql) has been applied.
+3. The following are configured in Vercel for the `Tarun` branch preview:
    - \`VITE_SUPABASE_URL\` = your new Supabase project URL
    - \`VITE_SUPABASE_PUBLISHABLE_KEY\` = its **publishable** API key (never secret/service role)
-4. In Supabase Auth URL settings, set the site URL and allow the [Tarun branch preview](https://formalop-git-tarun-mail2tarunv-cpus-projects.vercel.app) as an auth redirect.
-5. Redeploy; then test two *different browsers/accounts* to verify invitations, messages, voting and private file access.
+4. **Required:** enable `Anonymous Sign-Ins` in [Supabase → Authentication → Providers](https://supabase.com/dashboard/project/efhibksyoztceeyvfysn/auth/providers). Guest sessions do not use email redirects.
+5. Open the `Tarun` preview on separate devices. On one device create a room; on another use the invite code or link. Verify that membership, drawings and messages are isolated. Vercel preview access must also be configured for testers.
 6. Review RLS, storage policies, SQL functions, email deliverability and age-appropriate moderation before letting teens use the app.
 
 Required \`src/lib/client.js\` variables are exposed in frontend by design, so use only a Supabase **publishable** key, never service role. Credentials are intentionally absent until a dedicated backend is selected.
@@ -48,11 +48,11 @@ Production build: \`npm run build\`.
 
 ## Known incomplete parts / release blockers
 
-- **No connected backend yet**, so real sign-in/circles/etc. cannot be exercised on the current Vercel preview.
+- Backend connected; anonymous sign-ins still need to be enabled in Supabase before guest play can start.
 - **AI image stitching** is excluded intentionally; users get a deterministic collage instead.
 - **Scheduled background push notifications** are not configured; the UI accurately explains this.
 - Moderation dashboard, administrator review process, legal/parental age policy, account deletion and data retention require decisions and implementation before a real teen launch.
-- Email OTP deliverability, multi-account privacy, time-zone / DST boundary tests, accessibility and mobile browser testing still need live verification.
+- Guest sign-in, multi-device privacy, time-zone / DST boundary tests, accessibility and mobile browser testing still need live verification.
 - Supabase Free project limits and third-party usage costs need confirmation before provisioning.
 
 ## Workflow
@@ -86,3 +86,7 @@ To make push live after provisioning the **dedicated Doodl** database:
 The app cannot honestly be marked production-ready for teenagers without live
 security tests, age-appropriate policies, a monitored report queue, and an
 account deletion/data retention process.
+
+## Guest mode
+
+The app automatically calls `supabase.auth.signInAnonymously()` when there is no saved session. Each browser maintains a separate identity, while the database's membership RLS protects room messages and drawings. Room codes grant group membership, not control over another player's identity. Clearing browser data or changing browsers without account linking loses the previous guest profile. This is for a private prototype, not a ready-to-launch anonymous community for minors.

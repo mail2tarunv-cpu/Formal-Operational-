@@ -40,24 +40,30 @@ function SetupRequired(){return <div className="setup-page">
  </div>
  <p className="setup-note">Required environment variables: <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>. No user data is collected on this setup screen.</p>
  </div>}
-function Auth({onError}){
- const[email,setEmail]=useState(''),[token,setToken]=useState(''),[sent,setSent]=useState(false),[busy,setBusy]=useState(false);
- const send=async e=>{e.preventDefault();setBusy(true);
-  try{check(await supabase.auth.signInWithOtp({email:email.trim(),options:{emailRedirectTo:window.location.origin,shouldCreateUser:true}}));setSent(true)}
-  catch(e){onError(explainError(e))}finally{setBusy(false)}
- };
- const verify=async e=>{e.preventDefault();setBusy(true);
-  try{check(await supabase.auth.verifyOtp({email:email.trim(),token:token.trim(),type:'email'}))}
-  catch(e){onError(explainError(e))}finally{setBusy(false)}
- };
- return <main className="auth-shell">
-  <div className="auth-top"><span className="wordmark">doodl<span>.</span></span><span className="auth-private"><LockKeyhole size={15}/> Private by default</span></div>
-  <div className="auth-art" aria-hidden="true"><div className="auth-art-cover"><span>DOODL / 001</span><strong>Imagine<br/>something<br/>new.</strong></div></div>
-  <div className="auth-content"><span className="eyebrow">JUST YOU AND YOUR PEOPLE</span><h1>Draw with<br/>your people.</h1><p>One theme. Different ideas. One circle of friends. A new doodle every day.</p>
-   {sent?<form onSubmit={verify} className="auth-form"><label htmlFor="otp">Enter the code from your email</label><input id="otp" inputMode="numeric" autoComplete="one-time-code" placeholder="Email code" value={token} onChange={e=>setToken(e.target.value)} minLength={6} maxLength={12} required/><Btn type="submit" disabled={busy} icon={ArrowRight}>{busy?'Checking…':'Verify code'}</Btn><button type="button" className="text-button" onClick={()=>setSent(false)}>Use another email</button></form>
-   :<form className="auth-form" onSubmit={send}><label htmlFor="email">Your email</label><input id="email" type="email" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/><Btn type="submit" disabled={busy} icon={ArrowRight}>{busy?'Sending…':'Continue with email'}</Btn></form>}
-   <p className="auth-privacy"><Shield size={15}/> No public profiles or friend search. Join circles with an invite code.</p>
+// Separate device identity, backed by Supabase Auth rather than public database access.
+let guestPromise=null;
+function startGuestSession(){
+ if(!guestPromise)guestPromise=(async()=>{
+  const existing=await supabase.auth.getSession();
+  if(existing.error)throw existing.error;
+  if(existing.data.session?.user)return existing.data.session.user;
+  const newSession=await supabase.auth.signInAnonymously();
+  if(newSession.error)throw newSession.error;
+  if(!newSession.data.user)throw new Error('Guest session could not be created.');
+  return newSession.data.user;
+ })().finally(()=>{guestPromise=null});
+ return guestPromise;
+}
+function GuestUnavailable({error,onRetry}){
+ return <main className="guest-unavailable">
+  <span className="wordmark">doodl<span>.</span></span>
+  <div className="guest-unavailable-content"><div className="guest-unavailable-icon"><UsersRound size={29}/></div>
+   <h1>Guest rooms aren't available yet.</h1>
+   <p>There's no need to sign in. The Doodl project owner just needs to enable anonymous sign-ins in Supabase.</p>
+   {error&&<p className="guest-error" role="alert">{error}</p>}
+   <Btn icon={RotateCw} onClick={onRetry}>Try again</Btn>
   </div>
+  <p className="guest-footnote">Your drawings and messages will stay in your private circle.</p>
  </main>;
 }
 function composeArtwork(theme,members,submissions){
@@ -93,12 +99,14 @@ function MemberPicker({circle,members,me,onReport,onBlock}){
 }
 function Doodl() {
  const[user,setUser]=useState(undefined),[profile,setProfile]=useState(null);
+ const[guestError,setGuestError]=useState('');
  const[groups,setGroups]=useState([]),[groupId,setGroupId]=useState('');
  const[screen,setScreen]=useState('home'),[modal,setModal]=useState('');
  const[busy,setBusy]=useState(false),[error,setError]=useState(''),[toast,setToast]=useState('');
  const[members,setMembers]=useState([]),[board,setBoard]=useState(null),[previous,setPrevious]=useState(null);
  const[chat,setChat]=useState([]),[scores,setScores]=useState([]);
  const[newCircle,setNewCircle]=useState(''),[playerCount,setPlayerCount]=useState(3),[joinCode,setJoinCode]=useState('');
+ const initialInvite=useMemo(()=>new URLSearchParams(window.location.search).get('join')?.toUpperCase().replace(/[^0-9A-F]/g,'').slice(0,16)||'',[]);
  const[message,setMessage]=useState(''),[comment,setComment]=useState(''),[selectedDrawing,setSelectedDrawing]=useState(null),[comments,setComments]=useState([]);
  const[displayName,setDisplayName]=useState(''),[now,setNow]=useState(new Date()),[avatarBusy,setAvatarBusy]=useState(false);
  const[reportTarget,setReportTarget]=useState(null),[reportReason,setReportReason]=useState('');
@@ -114,11 +122,24 @@ function Doodl() {
  const handleError=(e)=>{setError(explainError(e));};
  const alert=(text)=>setToast(text);
  useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(''),3400);return()=>clearTimeout(t)},[toast]);
- useEffect(()=>{if(!supabase)return;
-  supabase.auth.getSession().then(({data,error})=>{if(error)setError(error.message);setUser(data.session?.user||null)}).catch(handleError);
-  const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>setUser(session?.user||null));
-  return()=>subscription.unsubscribe();
+ const bootGuest=useCallback(async()=>{
+  setGuestError('');setUser(undefined);
+  try{setUser(await startGuestSession())}
+  catch(e){setGuestError(explainError(e));setUser(null)}
  },[]);
+ useEffect(()=>{
+  if(!supabase)return;
+  const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>{
+   if(session?.user){setUser(session.user);setGuestError('')}
+  });
+  bootGuest();
+  return()=>subscription.unsubscribe();
+ },[bootGuest]);
+ useEffect(()=>{
+  if(!user?.id||!initialInvite)return;
+  setJoinCode(initialInvite);setModal('join');
+  window.history.replaceState(null,'',window.location.pathname);
+ },[user?.id,initialInvite]);
  useEffect(()=>{const interval=setInterval(()=>setNow(new Date()),30000);return()=>clearInterval(interval)},[]);
  useEffect(()=>{if('serviceWorker' in navigator)navigator.serviceWorker.getRegistration('/').then(reg=>reg?.pushManager?.getSubscription()).then(sub=>setPushEnabled(Boolean(sub))).catch(()=>{});},[]);
  useEffect(()=>{if(screen==='draw'&&board&&board.phase!=='drawing')setScreen('gallery');},[screen,board?.phase]);
@@ -192,10 +213,18 @@ function Doodl() {
  };
  const shareCode=async()=>{
   if(!group)return;
-  const str='Join my Doodl circle “'+group.name+'” with code: '+group.invite_code;
-  try{if(navigator.share)await navigator.share({text:str,title:'Join my Doodl circle'});
-      else{await navigator.clipboard.writeText(str);alert('Invite copied.');}}
-  catch(e){if(e.name!=='AbortError')alert(str)}
+  const invite=new URL('/',window.location.origin);
+  invite.searchParams.set('join',group.invite_code);
+  const message='Join my Doodl circle, '+group.name+'. Code: '+group.invite_code;
+  try{
+   if(navigator.share)await navigator.share({title:'Doodl · '+group.name,text:message,url:invite.toString()});
+   else{await navigator.clipboard.writeText(invite.toString());alert('Invite link copied.')}
+  }catch(e){if(e.name!=='AbortError')alert('Could not share. Copy the code instead.')}
+ };
+ const copyCode=async()=>{
+  if(!group)return;
+  try{await navigator.clipboard.writeText(group.invite_code);alert('Code copied.')}
+  catch{alert('Your code is '+group.invite_code)}
  };
  const exportArt=async(round)=>{
   if(!round?.submissions?.length)return alert('No drawings to export.');
@@ -244,8 +273,8 @@ function Doodl() {
   catch(e){handleError(e)}
  };
  if(!backendConfigured)return <SetupRequired/>;
- if(user===undefined)return <Waiting message="Starting Doodl…"/>;
- if(!user)return <><Auth onError={handleError}/>{error&&<div className="global-notice error" role="alert">{error}<button onClick={()=>setError('')}><X size={16}/></button></div>}</>;
+ if(user===undefined)return <Waiting message="Opening your studio…"/>;
+ if(!user)return <GuestUnavailable error={guestError} onRetry={bootGuest}/>;
  if(screen==='draw'&&group&&board?.phase==='drawing')return <><Canvas key={board.round.id+user.id} roundId={board.round.id} userId={user.id} prompt={prompt} theme={theme} existing={mySubmission} onClose={()=>switchTab('home')} onSubmit={onSubmit} onMessage={alert}/>{toast&&<div className="global-notice">{toast}</div>}</>;
  return <div className="live-app">
   <div className="live-device-clock" aria-hidden="true"><span>9:41</span><span>●● ◖▰</span></div>
@@ -283,7 +312,7 @@ function Doodl() {
     {groups.length?<div className="circle-list">{groups.map(g=><button className={'circle-row '+(g.id===group?.id?'selected':'')} key={g.id} onClick={()=>{setGroupId(g.id);switchTab('home')}}><span className="circle-icon"><UsersRound size={24}/></span><span><strong>{g.name}</strong><small>{g.player_count||3} players · Private</small></span><ChevronRight size={18}/></button>)}</div>
     :<div className="empty-small"><UsersRound size={32}/><h3>No circles yet.</h3><p>Invite a friend and create your first shared canvas.</p></div>}
     {group&&<><div className="section-heading"><h2>{group.name}</h2><button onClick={()=>setModal('members')}>Members <ChevronRight size={16}/></button></div>
-    <div className="code-card"><span>INVITE CODE</span><strong>{group.invite_code}</strong><p>Share this code with people you trust. {group.player_count||3} players total, including you.</p><Btn secondary icon={Share2} onClick={shareCode}>Share invite</Btn></div>
+    <div className="code-card"><span>INVITE CODE</span><strong>{group.invite_code}</strong><p>{group.player_count||3} players total, including you. Join from another device using this code.</p><Btn secondary icon={Share2} onClick={shareCode}>Share invite link</Btn><button className="copy-invite" onClick={copyCode}><Copy size={15}/> Copy code</button></div>
     <div className="list-section-label">MEMBERS</div><MemberPicker circle={group} members={members} me={user.id} onReport={id=>{setReportTarget(id);setModal('report')}}/>
     <button className="danger-link" onClick={exitCircle}><Trash2 size={17}/>{group.owner_id===user.id?'Delete circle':'Leave circle'}</button></>}
    </div>}
@@ -317,12 +346,12 @@ function Doodl() {
    </div>}
    {screen==='settings'&&<div className="screen">
     <div className="eyebrow">PERSONAL SPACE</div><h1>My profile<span>.</span></h1>
-    <div className="profile-card"><div className="profile-picture"><Avatar profile={profile} size={76}/><label className="upload-overlay" htmlFor="avatar-file" aria-label="Upload profile photo"><UploadCloud size={17}/></label><input id="avatar-file" accept="image/jpeg,image/png,image/webp" type="file" disabled={avatarBusy} onChange={changeAvatar}/></div><div><strong>{profile?.display_name||'Artist'}</strong><small>{user.email}</small></div></div>
+    <div className="profile-card"><div className="profile-picture"><Avatar profile={profile} size={76}/><label className="upload-overlay" htmlFor="avatar-file" aria-label="Upload profile photo"><UploadCloud size={17}/></label><input id="avatar-file" accept="image/jpeg,image/png,image/webp" type="file" disabled={avatarBusy} onChange={changeAvatar}/></div><div><strong>{profile?.display_name||'Artist'}</strong><small>{user.email||'Guest on this device'}</small></div></div>
     <label className="field-label" htmlFor="displayname">DISPLAY NAME</label><input className="field-input" id="displayname" maxLength={32} value={displayName} onChange={e=>setDisplayName(e.target.value)} placeholder="Your name"/><Btn onClick={saveProfile} disabled={busy||profileLoading} icon={Check}>Save profile</Btn>
     <div className="settings-section"><div className="section-heading"><h2>Privacy and account</h2></div>
      <div className="setting-item"><Shield size={19}/><div><strong>Private circles</strong><small>Your content is only available to members of your circles.</small></div></div>
      <div className="setting-item"><Bell size={19}/><div><strong>Daily notifications</strong><small>Get 7 AM drawing and 7 PM voting reminders when the push server is configured.</small></div><button className="text-button" disabled={busy||!import.meta.env.VITE_VAPID_PUBLIC_KEY} onClick={togglePush}>{!import.meta.env.VITE_VAPID_PUBLIC_KEY?'Not set up':pushEnabled?'Disable':'Enable'}</button></div>
-     <button className="setting-item setting-button" onClick={async()=>{await supabase.auth.signOut();setScreen('home')}}><LogOut size={19}/><div><strong>Sign out</strong></div><ArrowRight size={17}/></button>
+     <div className="guest-device-note"><LockKeyhole size={18}/><p>This browser remembers your guest profile. Clearing browser data loses your original player. Joining with a code from another browser creates a separate player.</p></div>
     </div><p className="helper-note">Doodl does not provide public user discovery. Never share private group codes publicly.</p>
    </div>}
   </main>
@@ -334,8 +363,8 @@ function Doodl() {
    {id:'ranks',icon:Trophy,label:'Ranks'}
   ].map(item=><button key={item.id} className={'tab '+(screen===item.id?'selected':'')+' '+(item.id==='draw'?'draw-tab':'')} onClick={()=>{if(item.id==='draw'&&(!group||phase!=='drawing')){alert(!group?'Create or join a circle first.':'Drawing is only open from 7 AM–7 PM.');return;}switchTab(item.id)}} aria-label={item.label}><span className="tab-icon"><item.icon size={22} strokeWidth={screen===item.id?2.4:1.8}/></span><small>{item.label}</small></button>)}</nav>
   {modal==='create'&&<Modal title="Start a circle" subtitle="Choose how many people can play." onClose={()=>setModal('')}><div className="field-label">PLAYERS</div><div className="player-choice" role="group" aria-label="Number of players">{[1,2,3].map(n=><button key={n} type="button" aria-pressed={playerCount===n} className={playerCount===n?'active':''} onClick={()=>setPlayerCount(n)}><strong>{n}</strong><span>{n===1?'Just me':n===2?'A duo':'A trio'}</span>{playerCount===n&&<Check size={17}/>}</button>)}</div><label className="field-label" htmlFor="circle">CIRCLE NAME</label><input id="circle" className="field-input" maxLength={48} value={newCircle} onChange={e=>setNewCircle(e.target.value)} placeholder="Give your circle a name"/><p className="sheet-help">{playerCount===1?'A private space just for you.':'You count as one player. Invite '+(playerCount-1)+' '+(playerCount===2?'friend':'friends')+' with your code.'}</p><Btn icon={ArrowRight} disabled={busy||newCircle.trim().length<2} onClick={create}>{busy?'Creating…':'Create circle'}</Btn></Modal>}
-  {modal==='created'&&group&&<Modal title="Circle created." subtitle="Your private room is ready." onClose={()=>setModal('')}><div className="created-room"><div className="created-check"><Check size={23}/></div><h3>{group.name}</h3><p>{group.player_count===1?'A circle just for you.':'Room for '+group.player_count+' players, including you.'}</p></div><div className="field-label">PRIVATE INVITE CODE</div><div className="created-code" role="status">{group.invite_code}</div><p className="sheet-help">{group.player_count===1?'Start your drawing whenever the round opens.':'Send the code to friends. They sign in and tap Join with code.'}</p>{group.player_count>1&&<Btn icon={Share2} onClick={shareCode}>Share invite code</Btn>}<Btn secondary onClick={()=>{setModal('');setScreen('home')}}>Go to my circle <ArrowRight size={16}/></Btn></Modal>}
-   {modal==='join'&&<Modal title="Join a circle" subtitle="Enter the invitation code from your friend." onClose={()=>setModal('')}><label className="field-label" htmlFor="invite">INVITATION CODE</label><input className="field-input invite-code-input" id="invite" value={joinCode} onChange={e=>setJoinCode(e.target.value.toUpperCase())} maxLength={16} placeholder="ENTER CODE" autoCapitalize="characters"/><Btn icon={ArrowRight} disabled={busy} onClick={join}>Join circle</Btn></Modal>}
+  {modal==='created'&&group&&<Modal title="Circle created." subtitle="Your private room is ready." onClose={()=>setModal('')}><div className="created-room"><div className="created-check"><Check size={23}/></div><h3>{group.name}</h3><p>{group.player_count===1?'A circle just for you.':'Room for '+group.player_count+' players, including you.'}</p></div><div className="field-label">PRIVATE INVITE CODE</div><div className="created-code" role="status">{group.invite_code}</div><button className="copy-invite" onClick={copyCode}><Copy size={16}/> Copy code</button><p className="sheet-help">{group.player_count===1?'Start your drawing whenever the round opens.':'Send the code or link to friends. They can join without signing in.'}</p>{group.player_count>1&&<Btn icon={Share2} onClick={shareCode}>Share invite code</Btn>}<Btn secondary onClick={()=>{setModal('');setScreen('home')}}>Go to my circle <ArrowRight size={16}/></Btn></Modal>}
+   {modal==='join'&&<Modal title="Join a circle" subtitle="Enter the invitation code from your friend." onClose={()=>setModal('')}><label className="field-label" htmlFor="invite">INVITATION CODE</label><input className="field-input invite-code-input" id="invite" value={joinCode} onChange={e=>setJoinCode(e.target.value.toUpperCase())} maxLength={16} placeholder="ENTER CODE" autoCapitalize="characters"/><Btn icon={ArrowRight} disabled={busy||joinCode.trim().length!==16} onClick={join}>Join circle</Btn></Modal>}
   {modal==='switch'&&<Modal title="Switch circle" onClose={()=>setModal('')}><div className="circle-list">{groups.map(g=><button key={g.id} className={'circle-row '+(g.id===group?.id?'selected':'')} onClick={()=>{setGroupId(g.id);setModal('')}}><span className="circle-icon"><UsersRound size={22}/></span><span><strong>{g.name}</strong><small>{g.player_count||3} players</small></span>{g.id===group?.id?<CheckCircle2 size={19}/>:<ChevronRight size={18}/>}</button>)}</div><button className="sheet-link" onClick={()=>setModal('create')}><Plus size={17}/> Make another circle</button></Modal>}
   {modal==='members'&&<Modal title={group?.name||'Members'} subtitle="People in this circle" onClose={()=>setModal('')}><MemberPicker circle={group} members={members} me={user.id} onReport={id=>{setReportTarget(id);setModal('report')}}/><div className="sheet-footer"><Btn secondary icon={Share2} onClick={shareCode}>Share invitation</Btn></div></Modal>}
   {modal==='drawing'&&selectedDrawing&&<Modal title={people[selectedDrawing.user_id]?.display_name||'Doodle'} subtitle="Submitted artwork" onClose={()=>setModal('')}>

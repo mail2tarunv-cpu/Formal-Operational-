@@ -15,7 +15,7 @@ Mobile-first private drawing game for teens aged 14–18. Each day a private cir
 - \`README.md\`: integration requirements, launch blockers and QA checklist.
 
 ## Critical constraints
-- The dedicated Doodl Supabase project **has not been connected**. Do not claim the multiplayer app works live until backend setup and two-account tests actually pass.
+- A dedicated Doodl Supabase project is connected to the Tarun preview. Guest-mode sign-in still requires enabling Anonymous Sign-Ins in Supabase Auth Providers. Do not claim multiplayer is verified until two-device tests pass.
 - Do not modify other existing Supabase apps, databases, or infrastructure.
 - Never include a Supabase secret/service-role key in browser code. Only use VITE_SUPABASE_PUBLISHABLE_KEY.
 - RLS membership and time gating are enforced on the server; never bypass to make a demo look good.
@@ -27,7 +27,7 @@ Mobile-first private drawing game for teens aged 14–18. Each day a private cir
 - For under-18 users, moderation, privacy and abuse prevention are product release requirements, not optional polish.
 
 ## Next priority
-Create/connect a dedicated backend with user authorization, apply migration and RLS tests, configure auth links and build live notifications with service worker/VAPID/cron. Test multiple accounts on different devices before calling the app complete. The AI stitching aspect stays out of scope.
+Enable Supabase anonymous guest sign-ins, confirm tester access past Vercel preview protection, and complete two-device verification before shipping. Keep distinct guest identities and RLS; then address safety, moderation, and notifications. Test multiple accounts on different devices before calling the app complete. The AI stitching aspect stays out of scope.
 
 ## Web push
 - \`src/lib/push.js\`: opt-in, browser push subscription, per signed-in user.
