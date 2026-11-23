@@ -7,7 +7,7 @@ import { ArrowLeft, ArrowRight, Bell, Check, CheckCircle2, ChevronDown, ChevronR
 } from 'lucide-react';
 import Canvas from './components/Canvas.jsx';
 import {canShareRound,contributed,gameMode,isGuestName} from './lib/game.js';
-import {supabase,backendConfigured,groupDate,THEMES,explainError,check} from './lib/client.js';
+import {supabase,backendConfigured,groupDate,THEMES,explainError,check,signedAvatarUrl} from './lib/client.js';
 import {
  readProfile,updateProfile,allProfiles,uploadAvatar,readCircles,createCircle,joinCircle,leaveCircle,
  getMembers,loadRound,getPreviousRound,submitDrawing,castVote,approveSharing,leaderboard,listMessages,sendMessage,
@@ -181,7 +181,7 @@ function Doodl() {
   if(!user)return;
   setProfileLoading(true);
   try{const p=await readProfile(user.id);let avatar_url='';
-   if(p.avatar_path){const {signedAvatarUrl}=await import('./lib/client.js');avatar_url=await signedAvatarUrl(p.avatar_path).catch(()=>'')}
+   if(p.avatar_path)avatar_url=await signedAvatarUrl(p.avatar_path).catch(()=>'')
    setProfile({...p,avatar_url});setDisplayName(isGuestName(p.display_name)?'':p.display_name)
   }finally{setProfileLoading(false)}
  },[user?.id]);
