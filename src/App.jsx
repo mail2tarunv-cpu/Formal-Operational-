@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowRight, Bell, Check, CheckCircle2, ChevronDown, ChevronR
  Copy, Download, Ellipsis, Eye, Heart, Home, Image as ImageIcon, Images, Info, LockKeyhole,
  LogOut, MessageCircle, Pencil, Plus, Send, Settings, Share2, Shield, SlidersHorizontal,
  Sparkles, Trash2, Trophy, UploadCloud, UserRound, UserRoundPlus, UsersRound, X, Flag, Ban,
- Clock3, CalendarDays, RotateCw, Play, Palette, CheckCheck
+ Clock3, CalendarDays, RotateCw, Play, Palette, CheckCheck, Rocket, Waves, Gamepad2, Store, Globe2, BookOpen, FerrisWheel, Flower2, TrainFront, Coffee, Cloud, Landmark
 } from 'lucide-react';
 import Canvas from './components/Canvas.jsx';
 import {canShareRound,contributed,gameMode,isGuestName} from './lib/game.js';
@@ -14,6 +14,8 @@ import {
  listComments,postComment,reportContent,blockUser,watchCircle,startDrawingSession,startQuickRound,canExportRound
 } from './lib/data.js';
 
+const themeMarks=[Rocket,Waves,Gamepad2,Store,Globe2,BookOpen,FerrisWheel,Flower2,TrainFront,Coffee,Cloud,Landmark];
+const ThemeMark=({index})=>{const Mark=themeMarks[index]||Palette;return <div className="theme-mark" aria-hidden="true"><Mark size={152} strokeWidth={.75}/></div>};
 const IconBtn=({icon:Icon,label,onClick,active=false})=><button type="button" className={'icon-btn '+(active?'active':'')} aria-label={label} title={label} onClick={onClick}><Icon size={21}/></button>;
 const Avatar=({profile,size=42})=><span className="real-avatar" style={{width:size,height:size}} title={profile?.display_name||'Artist'}>{profile?.avatar_url?<img src={profile.avatar_url} alt={profile.display_name+' photo'}/>:<UserRound size={Math.floor(size*.47)} strokeWidth={1.65}/>}</span>;
 const GroupAvatars=({members,size=31})=><div className="avatar-stack">{members.slice(0,5).map(m=><Avatar key={m.user_id} profile={m.profile} size={size}/>)}</div>;
@@ -309,7 +311,7 @@ function Doodl() {
   <div className="today-heading"><div className="eyebrow">{new Intl.DateTimeFormat('en-US',{weekday:'long',month:'short',day:'numeric'}).format(now)}</div><h1>Today</h1><button className="room-members-shortcut" onClick={()=>setModal('members')}><UsersRound size={17}/>{members.length} / {group?.player_count} players <ChevronRight size={17}/></button></div>
   {loading||!board?<Waiting message="Loading your prompt…"/>:<>
    <div className="challenge-poster">
-    <div className={'poster-image theme-'+board.round.theme_index}><div><span>TODAY'S PROMPT</span><h2>{theme.name}</h2></div></div>
+    <div className={'poster-image theme-'+board.round.theme_index}><ThemeMark index={board.round.theme_index}/><div><span>TODAY'S PROMPT</span><h2>{theme.name}</h2></div></div>
     <div className="challenge-details">
      <div className="status-row"><span className="phase-tag"><span/>{phase==='drawing'?'Drawing':phase==='voting'?'Voting':phase==='revealed'?'Revealed':'Upcoming'}</span><span>{board.round.quick_started_at?'Quick round':'7 AM – 7 PM · '+(group?.timezone?.split('/').at(-1).replaceAll('_',' ')||'Local')}</span></div>
      {phase==='drawing'?<><h3>{mySubmission?'Your drawing is saved.':'Your part: '+prompt.label}</h3><p>{mySubmission?'Friends’ artwork will be revealed after drawing closes.':prompt.description}</p><Btn icon={mySubmission?Images:Pencil} onClick={()=>switchTab(mySubmission?'gallery':'draw')}>{mySubmission?'View your drawing':'Start drawing'}</Btn>{mySubmission&&<button className="subtle-action" onClick={()=>switchTab('draw')}>Edit drawing</button>}</>:

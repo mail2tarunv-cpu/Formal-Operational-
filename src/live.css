@@ -394,3 +394,67 @@ body{background:#080809}.live-app,.drawing-app,.auth-shell,.setup-page{backgroun
 .guest-device-note{display:flex;gap:12px;padding:17px 0;color:#b5b5b8;align-items:flex-start}
 .guest-device-note svg{flex:0 0 auto}.guest-device-note p{font-size:11px;line-height:1.65;margin:0}
 @media(min-width:650px){.guest-unavailable{min-height:min(880px,calc(100dvh - 24px));border:1px solid #303034;border-radius:24px;box-shadow:0 36px 100px #0009}}
+
+/* Doodl · consolidated visual hierarchy for the core three destinations */
+.live-device-clock{display:none!important}
+.live-topbar{height:68px;min-height:68px;padding:0 18px;gap:12px}
+.live-top-actions{display:flex;align-items:center;gap:11px;min-width:0}
+.top-room-switch{display:flex;align-items:center;gap:7px;max-width:175px;min-height:44px;border:1px solid #3a3a3e;background:#232326;border-radius:9px;padding:0 10px;font-size:13px;font-weight:700}
+.top-room-switch span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top-room-switch:hover{background:#343439}
+.live-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:center}
+.live-tabs .tab{height:100%;min-height:68px}
+.live-tabs .tab small{font-size:12px;letter-spacing:0;font-weight:700}
+.live-tabs .tab.selected{color:#f6f6f6}
+.screen h1{font-size:35px;line-height:1.08;letter-spacing:-1.5px}
+.screen .eyebrow,.field-label,.list-section-label{font-size:12px;letter-spacing:.7px}
+.button,.cta,.draw-submit{font-size:14px;min-height:48px}
+.field-input,.message-compose input,.comment-compose input{font-size:16px}
+.sheet-help,.helper-note{font-size:13px;line-height:1.6}
+.today-heading{margin:4px 0 18px}.today-heading h1{font-size:38px;margin:9px 0 0}
+.room-members-shortcut{display:flex;align-items:center;gap:7px;margin-top:6px;min-height:43px;color:#c5c5c9;font-size:13px;padding:0 4px}
+.new-player-home{display:flex;flex-direction:column;gap:12px;padding:34px 0 8px}
+.new-player-home h1{font-size:40px;line-height:1.05;letter-spacing:-1.7px;margin:6px 0}
+.new-player-home p{font-size:15px;line-height:1.6;color:#bababe;margin:0}
+.new-player-art{height:188px;border-radius:13px;display:grid;place-items:center;margin:14px 0;background:radial-gradient(circle at 70% 30%,#9c4939,#3a2124 47%,#151419);color:#f6e0cb}
+.challenge-details h3{font-size:21px}.challenge-details p{font-size:14px;line-height:1.6}
+.challenge-poster .poster-image{height:257px;position:relative;overflow:hidden}
+.poster-image .theme-mark{position:absolute;right:16px;top:23px;width:170px;height:180px;display:grid;place-items:center;color:#ffffffba;opacity:.72;transform:rotate(-8deg);z-index:1;pointer-events:none}
+.poster-image>div:last-child{position:relative;z-index:2}
+.poster-image.theme-3{background:linear-gradient(150deg,#715042,#291b23 83%)}
+.poster-image.theme-4{background:linear-gradient(145deg,#34457d,#14142c 85%)}
+.poster-image.theme-5{background:linear-gradient(145deg,#684c2e,#191519 85%)}
+.poster-image.theme-6{background:linear-gradient(145deg,#4c2e70,#160f2a 85%)}
+.poster-image.theme-7{background:linear-gradient(145deg,#2c614d,#0e2620 85%)}
+.poster-image.theme-8{background:linear-gradient(145deg,#395d65,#101c28 85%)}
+.poster-image.theme-9{background:linear-gradient(145deg,#735044,#28181b 85%)}
+.poster-image.theme-10{background:linear-gradient(145deg,#42657a,#14262f 85%)}
+.poster-image.theme-11{background:linear-gradient(145deg,#684753,#1f1826 85%)}
+.poster-image.theme-3:after,.poster-image.theme-4:after,.poster-image.theme-5:after,.poster-image.theme-6:after,.poster-image.theme-7:after,.poster-image.theme-8:after,.poster-image.theme-9:after,.poster-image.theme-10:after,.poster-image.theme-11:after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,#09080be8,transparent 85%);z-index:0}
+.simple-room-state,.quick-round{margin-top:16px;padding:18px;background:#1d1d20;border:1px solid #353539;border-radius:10px}
+.simple-room-state{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.simple-room-state .button{width:auto;flex-shrink:0;padding:0 14px}
+.simple-room-state strong,.quick-round strong{font-size:14px;font-weight:760}
+.simple-room-state p,.quick-round p{font-size:13px;color:#aeaeaf;line-height:1.5;margin:6px 0}
+.quick-round button{display:flex;gap:8px;align-items:center;font-weight:700;padding:12px 0;color:#f4f4f4;font-size:14px}
+.subtle-action{display:block;margin:12px 0 0;font-size:13px;color:#c5c5c8;text-decoration:underline;text-underline-offset:4px}
+.gallery-screen .gallery-period{margin-top:20px}
+.gallery-screen .drawing-person{font-size:13px}
+.gallery-results,.past-round{margin-top:26px}
+.gallery-results h2,.past-round h2{font-size:21px;letter-spacing:-.5px;margin-bottom:8px}
+.gallery-results p,.past-round p{font-size:13px;color:#adaeb2}
+.past-round .previous-card{display:flex;flex-direction:column;align-items:stretch;gap:12px;padding:18px}
+.previous-gallery{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:17px}
+.previous-art{background:#252528;min-height:120px;display:grid;place-items:center;border-radius:10px;overflow:hidden}
+.previous-art img{width:100%;height:auto;object-fit:contain}
+.room-menu-actions{display:flex;flex-direction:column;gap:9px;margin-top:18px}
+.room-menu-actions .button{width:100%}
+.room-menu-actions .sheet-link{justify-content:center;padding:13px}
+.code-card{margin-bottom:20px}.code-card p{font-size:13px}
+.chat-screen .message p,.comment-item p{font-size:14px}
+.guest-device-note p{font-size:13px}
+.draw-clock{pointer-events:none}
+.draw-pause{font-size:14px;color:#d7d7d9;text-decoration:underline;text-underline-offset:4px;padding:14px}
+.draw-main .draw-intro p{font-size:14px}
+@media(min-width:650px){.live-app,.drawing-app{max-width:650px}.live-tabs{max-width:650px}}
+@media(max-width:370px){.top-room-switch{max-width:125px}.simple-room-state{flex-direction:column;align-items:flex-start}}
