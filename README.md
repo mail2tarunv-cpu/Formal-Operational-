@@ -4,7 +4,7 @@
 
 Doodl is a private, mobile-first creative drawing game for ages 14–18.
 
-This branch replaces the old browser-only demo with code for a real multi-user app. **Do not call the deployment finished until a dedicated Supabase project has been provisioned, the migration has been applied, live credentials are connected, and the security/UX checks below pass.** The project currently has no backend connection.
+This branch replaces the old browser-only demo with code for a real multi-user app. **Do not call the deployment finished until a dedicated Supabase project has been provisioned, the migration has been applied, live credentials are connected, and the security/UX checks below pass.** The Tarun preview has a dedicated connected Supabase backend; anonymous guests and room creation have been observed, but complete three-device gameplay remains unverified.
 
 ## Built into the app
 
@@ -30,7 +30,7 @@ This branch replaces the old browser-only demo with code for a real multi-user a
 5. Open the `Tarun` preview on separate devices. On one device create a room; on another use the invite code or link. Verify that membership, drawings and messages are isolated. Vercel preview access must also be configured for testers.
 6. Review RLS, storage policies, SQL functions, email deliverability and age-appropriate moderation before letting teens use the app.
 
-Required \`src/lib/client.js\` variables are exposed in frontend by design, so use only a Supabase **publishable** key, never service role. Credentials are intentionally absent until a dedicated backend is selected.
+The browser uses only the scoped Supabase **publishable** key. Never expose the service role or secret keys.
 
 ## Run locally
 
@@ -48,12 +48,12 @@ Production build: \`npm run build\`.
 
 ## Known incomplete parts / release blockers
 
-- Backend connected; anonymous sign-ins still need to be enabled in Supabase before guest play can start.
+- Guest sign-ins have been enabled and a guest player created successfully. Full cross-device gameplay remains unverified.
 - **AI image stitching** is excluded intentionally; users get a deterministic collage instead.
 - **Scheduled background push notifications** are not configured; the UI accurately explains this.
 - Moderation dashboard, administrator review process, legal/parental age policy, account deletion and data retention require decisions and implementation before a real teen launch.
 - Guest sign-in, multi-device privacy, time-zone / DST boundary tests, accessibility and mobile browser testing still need live verification.
-- Supabase Free project limits and third-party usage costs need confirmation before provisioning.
+- The separate Supabase project was created at a quoted $0/month; avoid upgrades and monitor free-tier limits.
 
 ## Workflow
 
@@ -90,3 +90,20 @@ account deletion/data retention process.
 ## Guest mode
 
 The app automatically calls `supabase.auth.signInAnonymously()` when there is no saved session. Each browser maintains a separate identity, while the database's membership RLS protects room messages and drawings. Room codes grant group membership, not control over another player's identity. Clearing browser data or changing browsers without account linking loses the previous guest profile. This is for a private prototype, not a ready-to-launch anonymous community for minors.
+
+## November 2026 prototype refinement
+
+The current prototype is intentionally organized around **Today, Gallery, and Chat**; drawing is accessed from Today, room switching and invitations from the header, member management from Room details, and results within Gallery. No separate Circles or Ranks tabs.
+
+The backend has an applied second migration, captured at [20261123204117](supabase/migrations/20261123204117_doodl_secure_gameplay_and_quick_rounds.sql). It enforces private artwork until reveal, 1/2/3-player mode behavior, 5/7/10-minute server-timed drawing sessions, contributor-only sharing consent, and owner-initiated 10-minute prototype quick rounds (5-minute voting for trios). Daily rounds remain time-gated by circle timezone.
+
+- Solo: draw and see your own work, no voting.
+- Duo: two separate prompts, drawings revealed together, no competitive vote.
+- Trio: each player gets a part; voting opens after drawing; results appear at reveal.
+- **Quick round:** appears to the room creator once every player has joined, and only before a submission has been made that day. One quick start per circle per day.
+- **No fake content:** all artwork, messages, and votes are loaded from Supabase.
+- **Consent:** saving/sharing a collage requires recorded approvals for every submitted artist, checked again against the server immediately before export.
+- **Drafts:** saved locally to the device; clearing browser storage loses guest identity and drafts.
+- **Tests:** run `npm test` for pure game-logic tests and `npm run build` for compile validation. These are not substitutes for device tests.
+
+Before public release: review privileged RPC grants, anonymous signup abuse controls and rate limits, reports queue, deletion/retention, mobile accessibility and actual browser playback across devices. Background notifications remain deliberately disabled.
