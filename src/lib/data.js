@@ -14,7 +14,7 @@ export async function allProfiles(ids) {
   return Promise.all(rows.map(async p=>({...p,avatar_url:await signedAvatarUrl(p.avatar_path).catch(()=>'')})));
 }
 export async function uploadAvatar(userId, file) {
-  const contentType = file.type==='image/webp'?'image/webp':'image/jpeg';
+  const contentType = file.type;
   if (!['image/jpeg','image/png','image/webp'].includes(file.type)) throw new Error('Choose a JPEG, PNG or WebP photo.');
   if (file.size>5*1024*1024) throw new Error('Please use a photo under 5 MB.');
   const path = userId+'/'+crypto.randomUUID()+'.'+(file.type==='image/png'?'png':file.type==='image/webp'?'webp':'jpg');
@@ -47,8 +47,10 @@ export async function loadRound(circleId,uid) {
   const phase=check(await client().rpc('round_phase',{p_round_id:id}));
   const parts=check(await client().from('round_parts').select('user_id,prompt_index').eq('round_id',id));
   const submissions=await listDrawings(id);
-  const [votes,consents]=await Promise.all([client().from('votes').select('submission_id').eq('round_id',id).eq('voter_id',uid),client().from('share_consents').select('user_id,approved').eq('round_id',id)]);
-  return {round,phase,parts,submissions,myVote:check(votes)[0]?.submission_id||null,consents:check(consents)};
+  const [votes,consents,sessions]=await Promise.all([client().from('votes').select('submission_id').eq('round_id',id).eq('voter_id',uid),client().from('share_consents').select('user_id,approved').eq('round_id',id),client().from('drawing_sessions').select('started_at,duration_seconds').eq('round_id',id).eq('user_id',uid).maybeSingle()]);
+  const existing=check(sessions);
+  const session=existing?{...existing,deadline:new Date(new Date(existing.started_at).getTime()+existing.duration_seconds*1000).toISOString()}:null;
+  return {round,phase,parts,submissions,myVote:check(votes)[0]?.submission_id||null,consents:check(consents),session};
 }
 export async function listDrawings(roundId) {
   const rows=check(await client().from('submissions').select('*').eq('round_id',roundId).order('submitted_at'));
@@ -78,6 +80,17 @@ export async function submitDrawing(round,circleId,userId,blob,oldPath) {
 }
 export async function approveSharing(roundId,userId,approved) {
   return check(await client().from('share_consents').upsert({round_id:roundId,user_id:userId,approved,updated_at:new Date().toISOString()},{onConflict:'round_id,user_id'}));
+}
+export async function startDrawingSession(roundId,durationSeconds) {
+  const rows=check(await client().rpc('start_drawing_session',{p_round_id:roundId,p_duration_seconds:durationSeconds}));
+  if(!rows?.[0]?.deadline)throw new Error('Unable to start the drawing session.');
+  return rows[0];
+}
+export async function startQuickRound(circleId) {
+  return check(await client().rpc('activate_quick_round',{p_circle_id:circleId}));
+}
+export async function canExportRound(roundId) {
+  return check(await client().rpc('can_export_round',{p_round_id:roundId}));
 }
 export async function castVote(roundId,submissionId) {
   return check(await client().rpc('cast_vote',{p_round_id:roundId,p_submission_id:submissionId}));
@@ -110,14 +123,14 @@ export async function blockUser(userId,blockedId) {
 export async function listBlocks(userId) {
   return check(await client().from('user_blocks').select('blocked_id').eq('blocker_id',userId));
 }
-export function watchCircle(circleId,callback) {
+export function watchCircle(circleId,callback,roundId) {
   const channel=client().channel('circle-'+circleId+'-'+crypto.randomUUID());
   for(const table of ['messages','circle_members']){
     channel.on('postgres_changes',{event:'*',schema:'public',table,filter:'circle_id=eq.'+circleId},callback);
   }
-  for(const table of ['submissions','votes','comments','share_consents']){
-    channel.on('postgres_changes',{event:'*',schema:'public',table},callback);
-  }
+  if(roundId){for(const table of ['submissions','votes','share_consents']){
+    channel.on('postgres_changes',{event:'*',schema:'public',table,filter:'round_id=eq.'+roundId},callback);
+  }}
   channel.subscribe();
   return ()=>{client().removeChannel(channel)};
 }
