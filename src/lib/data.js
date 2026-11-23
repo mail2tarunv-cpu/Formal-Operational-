@@ -47,9 +47,9 @@ export async function loadRound(circleId,uid) {
   const phase=check(await client().rpc('round_phase',{p_round_id:id}));
   const parts=check(await client().from('round_parts').select('user_id,prompt_index').eq('round_id',id));
   const submissions=await listDrawings(id);
-  const [votes,consents,sessions]=await Promise.all([client().from('votes').select('submission_id').eq('round_id',id).eq('voter_id',uid),client().from('share_consents').select('user_id,approved').eq('round_id',id),client().from('drawing_sessions').select('started_at,duration_seconds').eq('round_id',id).eq('user_id',uid).maybeSingle()]);
+  const [votes,consents,sessions,deadlineResult]=await Promise.all([client().from('votes').select('submission_id').eq('round_id',id).eq('voter_id',uid),client().from('share_consents').select('user_id,approved').eq('round_id',id),client().from('drawing_sessions').select('started_at,duration_seconds').eq('round_id',id).eq('user_id',uid).maybeSingle(),client().rpc('drawing_deadline',{p_round_id:id})]);
   const existing=check(sessions);
-  const session=existing?{...existing,deadline:new Date(new Date(existing.started_at).getTime()+existing.duration_seconds*1000).toISOString()}:null;
+  const session=existing?{...existing,deadline:check(deadlineResult)}:null;
   return {round,phase,parts,submissions,myVote:check(votes)[0]?.submission_id||null,consents:check(consents),session};
 }
 export async function listDrawings(roundId) {
