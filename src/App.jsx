@@ -213,7 +213,8 @@ function Doodl() {
  };
  const shareCode=async()=>{
   if(!group)return;
-  const invite=new URL('/',window.location.origin);
+  const invite=new URL(window.location.href);
+  invite.pathname='/';invite.hash='';
   invite.searchParams.set('join',group.invite_code);
   const message='Join my Doodl circle, '+group.name+'. Code: '+group.invite_code;
   try{
