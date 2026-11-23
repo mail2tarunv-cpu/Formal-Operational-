@@ -21,8 +21,27 @@ const Avatar=({profile,size=42})=><span className="real-avatar" style={{width:si
 const GroupAvatars=({members,size=31})=><div className="avatar-stack">{members.slice(0,5).map(m=><Avatar key={m.user_id} profile={m.profile} size={size}/>)}</div>;
 const Btn=({children,onClick,icon:Icon,secondary=false,disabled=false,className='',type='button'})=><button type={type} className={'button '+(secondary?'button-alt':'')+' '+className} onClick={onClick} disabled={disabled}>{children}{Icon&&<Icon size={17}/>}</button>;
 function Modal({title,subtitle,onClose,children}){
+ const panelRef=useRef(null),closeRef=useRef(onClose);
+ closeRef.current=onClose;
+ useEffect(()=>{
+  const previous=document.activeElement;
+  const focusable=()=>[...(panelRef.current?.querySelectorAll('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])')||[])];
+  const focusFirst=panelRef.current?.querySelector('input:not([disabled]), textarea:not([disabled])')||focusable()[0];
+  focusFirst?.focus();
+  const onKey=e=>{
+   if(e.key==='Escape'){e.preventDefault();closeRef.current?.();return}
+   if(e.key==='Tab'){
+    const items=focusable();if(!items.length)return;
+    const first=items[0],last=items[items.length-1];
+    if(e.shiftKey&&(document.activeElement===first||!panelRef.current?.contains(document.activeElement))){e.preventDefault();last.focus()}
+    else if(!e.shiftKey&&(document.activeElement===last||!panelRef.current?.contains(document.activeElement))){e.preventDefault();first.focus()}
+   }
+  };
+  document.addEventListener('keydown',onKey);
+  return()=>{document.removeEventListener('keydown',onKey);previous?.focus?.()};
+ },[]);
  return <div className="sheet-overlay" onPointerDown={e=>{if(e.target===e.currentTarget)onClose()}}>
-  <section className="sheet" role="dialog" aria-modal="true" aria-label={title}>
+  <section ref={panelRef} className="sheet" role="dialog" aria-modal="true" aria-label={title}>
    <header className="sheet-head"><div><h2>{title}</h2>{subtitle&&<p>{subtitle}</p>}</div><IconBtn icon={X} label="Close" onClick={onClose}/></header>
    <div className="sheet-inner">{children}</div>
   </section>
@@ -125,6 +144,7 @@ function Doodl() {
  const prompt={label:theme.prompt[mine?.prompt_index||0],description:theme.description[mine?.prompt_index||0]};
  const mySubmission=board?.submissions.find(s=>s.user_id===user?.id);
  const phase=board?.phase||'upcoming';
+ const drawingExpired=Boolean(board?.session?.deadline&&new Date(board.session.deadline).getTime()<=now.getTime());
  const people=useMemo(()=>Object.fromEntries(members.map(m=>[m.user_id,m.profile])),[members]);
  const handleError=(e)=>{setError(explainError(e));};
  const alert=(text)=>setToast(text);
@@ -252,14 +272,19 @@ function Doodl() {
  };
  const exportArt=async(round)=>{
   if(!round?.submissions?.length)return alert('No drawings to export.');
-  if(!canShareRound(round))return alert('Every contributing artist must approve sharing first.');
-  if(!(await canExportRound(round.id)))return alert('Sharing approval changed. Refresh the gallery.');
+  setBusy(true);
   try{
-   setBusy(true);const blob=await composeArtwork(THEMES[round.theme_index],members,round.submissions);
+   const soloOwn=group?.player_count===1&&round.submissions.length===1&&round.submissions[0].user_id===user.id;
+   if(soloOwn&&!canShareRound(round))await approveSharing(round.id,user.id,true);
+   else if(!canShareRound(round))return alert('Every contributing artist must approve sharing.');
+   if(!(await canExportRound(round.id)))return alert('Sharing permission changed. Refresh your gallery.');
+   const blob=await composeArtwork(THEMES[round.theme_index],members,round.submissions);
    const file=new File([blob],'our-doodl.png',{type:'image/png'});
-   if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Our group doodle'});}
-   else{const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);alert('Artwork saved.');}
-  }catch(e){if(e.name!=='AbortError')handleError(e)}finally{setBusy(false)}
+   if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title:'Our Doodl'});
+   else{const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download=file.name;link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);alert('Artwork saved.')}
+   await refreshGroup(true);
+  }catch(e){if(e.name!=='AbortError')handleError(e)}
+  finally{setBusy(false)}
  };
  const setSharing=async(round)=>{
   const accepted=round.consents?.some(c=>c.user_id===user.id&&c.approved);
@@ -314,7 +339,7 @@ function Doodl() {
     <div className={'poster-image theme-'+board.round.theme_index}><ThemeMark index={board.round.theme_index}/><div><span>TODAY'S PROMPT</span><h2>{theme.name}</h2></div></div>
     <div className="challenge-details">
      <div className="status-row"><span className="phase-tag"><span/>{phase==='drawing'?'Drawing':phase==='voting'?'Voting':phase==='revealed'?'Revealed':'Upcoming'}</span><span>{board.round.quick_started_at?'Quick round':'7 AM – 7 PM · '+(group?.timezone?.split('/').at(-1).replaceAll('_',' ')||'Local')}</span></div>
-     {phase==='drawing'?<><h3>{mySubmission?'Your drawing is saved.':'Your part: '+prompt.label}</h3><p>{mySubmission?'Friends’ artwork will be revealed after drawing closes.':prompt.description}</p><Btn icon={mySubmission?Images:Pencil} onClick={()=>switchTab(mySubmission?'gallery':'draw')}>{mySubmission?'View your drawing':'Start drawing'}</Btn>{mySubmission&&<button className="subtle-action" onClick={()=>switchTab('draw')}>Edit drawing</button>}</>:
+     {phase==='drawing'?<>{drawingExpired&&!mySubmission?<><h3>Drawing time ended.</h3><p>Your next prompt will open with the next round.</p><Btn secondary onClick={()=>switchTab('gallery')}>View gallery</Btn></>:<><h3>{mySubmission?'Your drawing is saved.':'Your part: '+prompt.label}</h3><p>{mySubmission?'Friends’ artwork will be revealed after drawing closes.':prompt.description}</p><Btn icon={mySubmission?Images:Pencil} onClick={()=>switchTab(mySubmission?'gallery':'draw')}>{mySubmission?'View your drawing':'Start drawing'}</Btn>{mySubmission&&!drawingExpired&&<button className="subtle-action" onClick={()=>switchTab('draw')}>Edit drawing</button>}</>}</>:
      phase==='voting'?<><h3>Pick a favorite.</h3><p>Everyone’s drawing is ready. Choose one before the reveal.</p><Btn icon={Heart} onClick={()=>switchTab('gallery')}>View and vote</Btn></>:
      phase==='revealed'?<><h3>The reveal is here.</h3><p>{mode==='solo'?'See what you made.':mode==='duo'?'See what you made together.':'See the drawings and results.'}</p><Btn icon={Images} onClick={()=>switchTab('gallery')}>See the reveal</Btn></>:
      <><h3>Your next prompt is coming.</h3><p>Drawing opens at 7 AM.</p><Btn secondary onClick={()=>switchTab('gallery')}>View past artwork</Btn></>}
@@ -330,7 +355,7 @@ function Doodl() {
  {!group?<div className="empty-small"><Images size={32}/><p>Join a room to see drawings.</p></div>:loading||!board?<Waiting message="Loading your gallery…"/>:<>
   <div className="gallery-period"><div><span className="phase-tag"><span/>{phase==='drawing'?'Drawing':phase==='voting'?'Voting':phase==='revealed'?'Revealed':'Upcoming'}</span><h3>{theme.name}</h3><p>{phase==='drawing'?'Your friends’ artwork stays hidden for now.':board.submissions.length+' drawing'+(board.submissions.length===1?'':'s')}</p></div></div>
   {phase==='drawing'&&<p className="helper-note"><LockKeyhole size={16}/> Only your drawing is visible until the reveal.</p>}
-  {board.submissions.length===0?<div className="empty-small"><Pencil size={32}/><h3>No drawings here yet.</h3><p>{phase==='drawing'?'Make your first drawing.':'Your next round is around the corner.'}</p>{phase==='drawing'&&<Btn onClick={()=>switchTab('draw')} icon={Pencil}>Draw now</Btn>}</div>:
+  {board.submissions.length===0?<div className="empty-small"><Pencil size={32}/><h3>No drawings here yet.</h3><p>{phase==='drawing'?'Make your first drawing.':'Your next round is around the corner.'}</p>{phase==='drawing'&&!drawingExpired&&<Btn onClick={()=>switchTab('draw')} icon={Pencil}>Draw now</Btn>}</div>:
    <div className="drawing-grid">{board.submissions.map(s=><article className="drawing-card" key={s.id}>
     <button className="drawing-image" onClick={()=>openDrawing(s)}>{s.url?<img src={s.url} alt={'Drawing by '+(people[s.user_id]?.display_name||'Artist')}/>:<ImageIcon size={30}/>}</button>
     <div className="drawing-person"><Avatar profile={people[s.user_id]} size={31}/><span>{s.user_id===user.id?'You':people[s.user_id]?.display_name||'Artist'}</span>{phase!=='drawing'&&<button aria-label="Comments" onClick={()=>openDrawing(s)}><MessageCircle size={19}/></button>}</div>
@@ -341,8 +366,8 @@ function Doodl() {
    <h3>{mode==='solo'?'Save your drawing':'Share your artwork'}</h3>
    <p>{mode==='solo'?'Export what you made.':'Every person who contributed must approve group sharing.'}</p>
    {mode!=='solo'&&<div className="consent-status"><Shield size={16}/>{board.submissions.filter(s=>board.consents?.some(c=>c.user_id===s.user_id&&c.approved)).length} / {board.submissions.length} artists approved</div>}
-   {contributed(board,user.id)&&<button className="consent-toggle" onClick={()=>setSharing({...board.round,consents:board.consents})}>{board.consents?.some(c=>c.user_id===user.id&&c.approved)?<CheckCircle2 size={18}/>:<Shield size={18}/>} {board.consents?.some(c=>c.user_id===user.id&&c.approved)?'Withdraw permission':'Approve sharing'}</button>}
-   <Btn icon={Download} onClick={()=>exportArt({...board.round,submissions:board.submissions,consents:board.consents})} disabled={busy||!canShareRound(board)}>Save or share</Btn>
+   {mode!=='solo'&&contributed(board,user.id)&&<button className="consent-toggle" onClick={()=>setSharing({...board.round,consents:board.consents})}>{board.consents?.some(c=>c.user_id===user.id&&c.approved)?<CheckCircle2 size={18}/>:<Shield size={18}/>} {board.consents?.some(c=>c.user_id===user.id&&c.approved)?'Withdraw permission':'Approve sharing'}</button>}
+   <Btn icon={Download} onClick={()=>exportArt({...board.round,submissions:board.submissions,consents:board.consents})} disabled={busy||(mode!=='solo'&&!canShareRound(board))}>Save or share</Btn>
   </section>}
   {previous&&<div className="past-round"><h2>Previous round</h2><div className="previous-card"><strong>{THEMES[previous.theme_index]?.name||'Earlier artwork'}</strong><p>{previous.submissions.length} drawings</p><Btn secondary icon={Images} onClick={()=>setModal('previous')}>Open previous round</Btn></div></div>}
  </>}
@@ -384,7 +409,7 @@ function Doodl() {
     <form className="comment-compose" onSubmit={sendComment}><input value={comment} onChange={e=>setComment(e.target.value)} maxLength={350} placeholder="Leave a comment..." aria-label="Comment"/><button type="submit" disabled={!comment.trim()}><Send size={19}/></button></form>
     {mode==='trio'&&phase==='voting'&&selectedDrawing.user_id!==user.id&&<Btn icon={Heart} onClick={()=>{vote(selectedDrawing);setModal('')}}>{board.myVote===selectedDrawing.id?'Change vote':'Vote for this drawing'}</Btn>}</>}
    </Modal>}
-  {modal==='previous'&&previous&&<Modal title={THEMES[previous.theme_index]?.name||'Previous round'} subtitle="Earlier artwork" onClose={()=>setModal('')}><div className="previous-gallery">{previous.submissions.map(s=><div key={s.id} className="previous-art">{s.url?<img src={s.url} alt="Earlier drawing"/>:<ImageIcon size={24}/>}</div>)}</div><p className="sheet-help">Only contributing artists can approve sharing.</p>{contributed(previous,user.id)&&<button className="consent-toggle" onClick={()=>setSharing(previous)}>{previous.consents?.some(c=>c.user_id===user.id&&c.approved)?'Withdraw permission':'Approve sharing'}</button>}<Btn secondary icon={Share2} onClick={()=>exportArt(previous)} disabled={busy||!canShareRound(previous)}>Save or share</Btn></Modal>}
+  {modal==='previous'&&previous&&<Modal title={THEMES[previous.theme_index]?.name||'Previous round'} subtitle="Earlier artwork" onClose={()=>setModal('')}><div className="previous-gallery">{previous.submissions.map(s=><div key={s.id} className="previous-art">{s.url?<img src={s.url} alt="Earlier drawing"/>:<ImageIcon size={24}/>}</div>)}</div><p className="sheet-help">Only contributing artists can approve sharing.</p>{mode!=='solo'&&contributed(previous,user.id)&&<button className="consent-toggle" onClick={()=>setSharing(previous)}>{previous.consents?.some(c=>c.user_id===user.id&&c.approved)?'Withdraw permission':'Approve sharing'}</button>}<Btn secondary icon={Share2} onClick={()=>exportArt(previous)} disabled={busy||(mode!=='solo'&&!canShareRound(previous))}>Save or share</Btn></Modal>}
  {modal==='name'&&<Modal title="What should we call you?" subtitle="Your friends will see this name." onClose={()=>{sessionStorage.setItem('doodl-name-prompt-'+user.id,'1');setModal('')}}><label className="field-label" htmlFor="first-name">YOUR NAME</label><input id="first-name" className="field-input" maxLength={32} value={displayName} onChange={e=>setDisplayName(e.target.value)} placeholder="Your name"/><Btn icon={ArrowRight} disabled={busy||displayName.trim().length<2} onClick={saveProfile}>Continue</Btn><button className="sheet-link" onClick={()=>{sessionStorage.setItem('doodl-name-prompt-'+user.id,'1');setModal('')}}>Not now</button></Modal>}
  {(modal==='report'||modal==='report-art')&&<Modal title="Report content" subtitle="Help us keep circles safer." onClose={()=>setModal('')}><label className="field-label" htmlFor="reason">WHAT HAPPENED?</label><textarea id="reason" className="field-input" rows={4} maxLength={500} value={reportReason} onChange={e=>setReportReason(e.target.value)} placeholder="Tell us what is wrong…"/><Btn icon={Flag} onClick={async()=>{if(modal==='report-art'){try{await reportContent(user.id,reportTarget,'drawing',reportReason);setModal('');alert('Report submitted.')}catch(e){handleError(e)}}else submitReport()}}>Submit report</Btn>{modal==='report'&&<button className="sheet-link" onClick={()=>block(reportTarget)}><Ban size={17}/> Block this person</button>}</Modal>}
   {toast&&<div className="global-notice" role="status">{toast}</div>}
