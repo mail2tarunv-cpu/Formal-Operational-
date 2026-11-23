@@ -107,3 +107,5 @@ The backend has an applied second migration, captured at [20261123204117](supaba
 - **Tests:** run `npm test` for pure game-logic tests and `npm run build` for compile validation. These are not substitutes for device tests.
 
 Before public release: review privileged RPC grants, anonymous signup abuse controls and rate limits, reports queue, deletion/retention, mobile accessibility and actual browser playback across devices. Background notifications remain deliberately disabled.
+
+**Leaving a room:** the server now revokes all of that guest's sharing approvals for the room before removing membership. Previously exported files cannot be recalled. Room owners must delete a room rather than leave it.

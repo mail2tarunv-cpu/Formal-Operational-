@@ -310,7 +310,7 @@ function Doodl() {
   catch(e){handleError(e)}
  };
  const exitCircle=async()=>{
-  if(!window.confirm(group?.owner_id===user.id?'Delete this circle for everyone?':'Leave this circle?'))return;
+  if(!window.confirm(group?.owner_id===user.id?'Delete this room and its artwork for everyone?':'Leave this room? Your permission to share its artwork will be withdrawn.'))return;
   try{await leaveCircle(group.id,group.owner_id===user.id);setModal('');setScreen('home');await refreshCircles();alert('Circle updated.')}
   catch(e){handleError(e)}
  };
@@ -364,7 +364,7 @@ function Doodl() {
   {mode==='trio'&&phase==='revealed'&&<section className="gallery-results"><h2>Results</h2><p>10 points per vote received.</p>{scores.length?<div className="leader-list">{scores.map((rank,i)=><div className="leader-row" key={rank.user_id}><span className="leader-position">{i+1}</span><Avatar profile={people[rank.user_id]} size={38}/><span className="leader-name">{people[rank.user_id]?.display_name||'Artist'}{rank.user_id===user.id?' (you)':''}</span><strong>{rank.points} pts</strong></div>)}</div>:<p className="helper-note">Scores will appear after voting closes.</p>}</section>}
   {phase==='revealed'&&board.submissions.length>0&&<section className="gallery-export">
    <h3>{mode==='solo'?'Save your drawing':'Share your artwork'}</h3>
-   <p>{mode==='solo'?'Export what you made.':'Every person who contributed must approve group sharing.'}</p>
+   <p>{mode==='solo'?'Export what you made.':'Every contributing artist must approve. Withdrawal stops future exports but cannot recall files already shared.'}</p>
    {mode!=='solo'&&<div className="consent-status"><Shield size={16}/>{board.submissions.filter(s=>board.consents?.some(c=>c.user_id===s.user_id&&c.approved)).length} / {board.submissions.length} artists approved</div>}
    {mode!=='solo'&&contributed(board,user.id)&&<button className="consent-toggle" onClick={()=>setSharing({...board.round,consents:board.consents})}>{board.consents?.some(c=>c.user_id===user.id&&c.approved)?<CheckCircle2 size={18}/>:<Shield size={18}/>} {board.consents?.some(c=>c.user_id===user.id&&c.approved)?'Withdraw permission':'Approve sharing'}</button>}
    <Btn icon={Download} onClick={()=>exportArt({...board.round,submissions:board.submissions,consents:board.consents})} disabled={busy||(mode!=='solo'&&!canShareRound(board))}>Save or share</Btn>
