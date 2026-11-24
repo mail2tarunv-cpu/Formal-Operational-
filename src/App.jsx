@@ -85,7 +85,7 @@ function GuestUnavailable({error,onRetry}){
    {error&&<p className="guest-error" role="alert">Guest access is temporarily unavailable.</p>}
    <Btn icon={RotateCw} onClick={onRetry}>Try again</Btn>
   </div>
-  <p className="guest-footnote">Your drawings and messages will stay in your private circle.</p>
+  <p className="guest-footnote">Your drawings and messages stay in your private room.</p>
  </main>;
 }
 function composeArtwork(theme,members,submissions){
@@ -137,15 +137,16 @@ function Doodl() {
  const[reportTarget,setReportTarget]=useState(null),[reportReason,setReportReason]=useState('');
  const[loading,setLoading]=useState(false),[profileLoading,setProfileLoading]=useState(false);
  const activeGroupRef=useRef('');
+ const activeDrawingRef=useRef(null);
  const group=groups.find(g=>g.id===groupId)||null;
  const board=loadedBoard?.round?.circle_id===groupId?loadedBoard:null;
  activeGroupRef.current=group?.id||'';
  const mode=gameMode(group?.player_count);
  const roomReady=Boolean(group&&board&&members.length===group.player_count);
  const canQuickStart=Boolean(group&&board&&group.owner_id===user?.id&&roomReady&&!board.round.quick_started_at&&!board.submissions.length);
- const theme=board?THEMES[board.round.theme_index]:THEMES[0];
+ const theme=THEMES[board?.round?.theme_index]||THEMES[0];
  const mine=board?.parts.find(p=>p.user_id===user?.id);
- const prompt={label:theme.prompt[mine?.prompt_index||0],description:theme.description[mine?.prompt_index||0]};
+ const prompt={label:theme.prompt[mine?.prompt_index||0]||'Your prompt',description:theme.description[mine?.prompt_index||0]||''};
  const mySubmission=board?.submissions.find(s=>s.user_id===user?.id);
  const phase=board?.phase||'upcoming';
  const drawingExpired=Boolean(board?.session?.deadline&&new Date(board.session.deadline).getTime()<=now.getTime());
@@ -169,7 +170,7 @@ function Doodl() {
  useEffect(()=>{
   if(!user?.id||!initialInvite)return;
   setJoinCode(initialInvite);setModal('join');
-  window.history.replaceState(null,'',window.location.pathname);
+  const clean=new URL(window.location.href);clean.searchParams.delete('join');window.history.replaceState(null,'',clean.pathname+clean.search+clean.hash);
  },[user?.id,initialInvite]);
  useEffect(()=>{const interval=setInterval(()=>setNow(new Date()),30000);return()=>clearInterval(interval)},[]);
  
@@ -203,11 +204,11 @@ function Doodl() {
    const [m,b,msg,rank,blocks]=await Promise.all([getMembers(requested),loadRound(requested,user.id),listMessages(requested),group.player_count===3?leaderboard(requested):Promise.resolve([]),listBlocks(user.id)]);
    const [past,votes]=await Promise.all([listRoundHistory(requested,b.round.day),b.phase==='revealed'&&group.player_count===3?listRoundVotes(b.round.id):Promise.resolve([])]);
    if(activeGroupRef.current!==requested)return;
-   setMembers(m);setBoard(b);setChat(msg);setScores(rank);setBlocked(blocks.map(x=>x.blocked_id));setRoundVotes(votes);setHistory(old=>old.length>24&&old[0]?.id===past[0]?.id?old:past);setHistoryMore(old=>past.length===24||old&&past.length===24);
+   setMembers(m);setBoard(b);setChat(msg);setScores(rank);setBlocked(blocks.map(x=>x.blocked_id));setRoundVotes(votes);setHistory(old=>old.length>24&&old[0]?.id===past[0]?.id?old:past);setHistoryMore(old=>past.length===24&&(history.length<=24||old));
   }catch(e){if(activeGroupRef.current===requested)handleError(e)}
   finally{if(!silent&&activeGroupRef.current===requested)setLoading(false)}
- },[group?.id,group?.player_count,user?.id]);
- useEffect(()=>{setBoard(null);setMembers([]);setChat([]);setScores([]);setPrevious(null);setHistory([]);setHistoryMore(false);setRoundVotes([]);setSelectedDrawing(null);setComments([]);setMessage('');setComment('')},[groupId]);
+ },[group?.id,group?.player_count,user?.id,history.length>24]);
+ useEffect(()=>{setBoard(null);setMembers([]);setChat([]);setScores([]);setPrevious(null);setHistory([]);setHistoryMore(false);setRoundVotes([]);activeDrawingRef.current=null;setSelectedDrawing(null);setComments([]);setMessage('');setComment('')},[groupId]);
  useEffect(()=>{const el=chatScroll.current;if(screen==='chat'&&el&&(el.scrollHeight-el.scrollTop-el.clientHeight<180||chat.length<4))chatEnd.current?.scrollIntoView({block:'end'});},[chat.length,screen]);
  useEffect(()=>{
   if(!group)return;
@@ -250,12 +251,12 @@ function Doodl() {
  const send=async e=>{
   e.preventDefault();if(!message.trim()||sending||!group)return;
   const body=message.trim(),id=group.id;setSending(true);
-  try{await sendMessage(id,user.id,body);if(activeGroupRef.current===id){setMessage('');setChat(await listMessages(id));}}
+  try{await sendMessage(id,user.id,body);if(activeGroupRef.current===id){setMessage('');const fresh=await listMessages(id);if(activeGroupRef.current===id)setChat(fresh);}}
   catch(e){handleError(e)}finally{setSending(false)}
  };
  const openDrawing=async item=>{
-  setSelectedDrawing(item);setComments([]);setComment('');setModal('drawing');
-  try{const id=group.id;const rows=await listComments(item.id);if(activeGroupRef.current===id)setComments(rows)}catch(e){handleError(e)}
+  activeDrawingRef.current=item.id;setSelectedDrawing(item);setComments([]);setComment('');setModal('drawing');
+  try{const id=group.id;const rows=await listComments(item.id);if(activeGroupRef.current===id&&activeDrawingRef.current===item.id)setComments(rows)}catch(e){handleError(e)}
  };
  const sendComment=async e=>{
   e.preventDefault();if(!comment.trim()||!selectedDrawing)return;
@@ -366,7 +367,7 @@ function Doodl() {
   {board.submissions.length===0?<div className="empty-small"><Pencil size={32}/><h3>No drawings here yet.</h3><p>{phase==='drawing'?'Make your first drawing.':'There were no submissions in this round.'}</p>{phase==='drawing'&&roomReady&&!drawingExpired&&<Btn onClick={()=>switchTab('draw')} icon={Pencil}>Draw now</Btn>}</div>:
    <div className={'drawing-grid '+(phase==='revealed'?'revealed-grid':'')}>{board.submissions.map(s=><article className="drawing-card" key={s.id}>
     <button className="drawing-image" onClick={()=>openDrawing(s)}>{s.url?<img src={s.url} alt={'Drawing by '+(people[s.user_id]?.display_name||'Artist')}/>:<ImageIcon size={30}/>}</button>
-    <div className="drawing-person"><Avatar profile={people[s.user_id]} size={31}/><span>{s.user_id===user.id?'You':people[s.user_id]?.display_name||'Artist'}</span>{phase!=='drawing'&&<button aria-label="Comments" onClick={()=>openDrawing(s)}><MessageCircle size={19}/></button>}</div>
+    <div className="drawing-person"><Avatar profile={people[s.user_id]} size={31}/><span>{s.user_id===user.id?'You':people[s.user_id]?.display_name||'Artist'}</span>{phase!=='drawing'&&<button aria-label="View comments" onClick={()=>openDrawing(s)}><MessageCircle size={19}/></button>}</div>
     {mode==='trio'&&phase==='voting'&&s.user_id!==user.id&&<button className={'vote-action '+(board.myVote===s.id?'voted':'')} onClick={()=>vote(s)}><Heart size={17} fill={board.myVote===s.id?'currentColor':'none'}/>{board.myVote===s.id?'Voted':'Vote'}</button>}
    </article>)}</div>}
   {mode==='trio'&&phase==='revealed'&&<section className="gallery-results"><h2>Round results</h2><p>{roundVotes.length} {roundVotes.length===1?'vote':'votes'} cast in this round.</p><div className="round-results">{board.submissions.map(s=><div key={s.id}><Avatar profile={people[s.user_id]} size={30}/><span>{s.user_id===user.id?'You':people[s.user_id]?.display_name||'Artist'}</span><strong>{roundVotes.filter(v=>v.submission_id===s.id).length} votes</strong></div>)}</div><h3>Room scores</h3><p>10 points per vote across completed rounds.</p>{scores.length?<div className="leader-list">{scores.map((rank,i)=><div className="leader-row" key={rank.user_id}><span className="leader-position">{i+1}</span><Avatar profile={people[rank.user_id]} size={38}/><span className="leader-name">{people[rank.user_id]?.display_name||'Artist'}{rank.user_id===user.id?' (you)':''}</span><strong>{rank.points} pts</strong></div>)}</div>:<p className="helper-note">Scores will appear after voting closes.</p>}</section>}
@@ -383,8 +384,8 @@ function Doodl() {
  {screen==='chat'&&<div className="screen chat-screen">
     <header className="chat-screen-head"><h1>{group?.name||'Messages'}</h1><div className="chat-avatars"><GroupAvatars members={members} size={29}/><span>{members.length} members</span></div></header>
     {!group?<div className="empty-small"><MessageCircle size={31}/><p>Create a circle first.</p></div>:
-    <><div className="messages-scroll" ref={chatScroll}>{chat.length===0?<div className="empty-chat"><MessageCircle size={32}/><h3>Start a conversation</h3><p>This conversation stays in your private circle.</p></div>:chat.map(m=><div className={'message '+(m.user_id===user.id?'mine':'')} key={m.id}>{m.user_id!==user.id&&<Avatar profile={people[m.user_id]} size={31}/>}<div><span className="message-name">{m.user_id===user.id?'You':people[m.user_id]?.display_name||'Artist'}</span><p>{m.body}</p><div className="message-meta"><time>{new Date(m.created_at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</time>{m.user_id!==user.id&&<button type="button" aria-label="Report message" onClick={()=>{setReportTarget(m.id);setReportReason('');setModal('report-message')}}><Flag size={14}/></button>}</div></div></div>)}<div ref={chatEnd}/></div>
-    <form className="message-compose" onSubmit={send}><input value={message} onChange={e=>setMessage(e.target.value)} maxLength={800} placeholder="Message your circle..." aria-label="Message"/><button type="submit" aria-label="Send" disabled={!message.trim()||sending}>{sending?<Clock3 size={20}/>:<Send size={20}/>}</button></form></>}
+    <><div className="messages-scroll" ref={chatScroll}>{chat.length===0?<div className="empty-chat"><MessageCircle size={32}/><h3>Start a conversation</h3><p>This conversation is private to your room.</p></div>:chat.map(m=><div className={'message '+(m.user_id===user.id?'mine':'')} key={m.id}>{m.user_id!==user.id&&<Avatar profile={people[m.user_id]} size={31}/>}<div><span className="message-name">{m.user_id===user.id?'You':people[m.user_id]?.display_name||'Artist'}</span><p>{m.body}</p><div className="message-meta"><time>{new Date(m.created_at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</time>{m.user_id!==user.id&&<button type="button" aria-label="Report message" onClick={()=>{setReportTarget(m.id);setReportReason('');setModal('report-message')}}><Flag size={14}/></button>}</div></div></div>)}<div ref={chatEnd}/></div>
+    <form className="message-compose" onSubmit={send}><input value={message} onChange={e=>setMessage(e.target.value)} maxLength={800} placeholder="Message your room…" aria-label="Message"/><button type="submit" aria-label="Send" disabled={!message.trim()||sending}>{sending?<Clock3 size={20}/>:<Send size={20}/>}</button></form></>}
    </div>}
    {screen==='settings'&&<div className="screen">
     <h1>Profile</h1>
@@ -413,13 +414,13 @@ function Doodl() {
      {selectedDrawing.user_id!==user.id&&<button className="flag-icon" onClick={()=>{setReportTarget(selectedDrawing.id);setModal('report-art')}} aria-label="Report drawing"><Flag size={17}/></button>}
     </div>
     {phase!=='drawing'&&<><h3 className="detail-section">Comments</h3>
-    <div className="comments-list">{comments.filter(c=>!blocked.includes(c.user_id)).length?comments.filter(c=>!blocked.includes(c.user_id)).map(c=><div className="comment-item" key={c.id}><Avatar profile={people[c.user_id]} size={31}/><div><strong>{people[c.user_id]?.display_name||'Artist'}</strong><p>{c.body}</p>{c.user_id!==user.id&&<button className="comment-report" type="button" aria-label="Report comment" onClick={()=>{setReportTarget(c.id);setReportReason('');setModal('report-comment')}}><Flag size={14}/></button>}</div></div>):<p className="sheet-help">No comments yet. Say something kind.</p>}</div>
+    <div className="comments-list">{comments.filter(c=>!blocked.includes(c.user_id)).length?comments.filter(c=>!blocked.includes(c.user_id)).map(c=><div className="comment-item" key={c.id}><Avatar profile={people[c.user_id]} size={31}/><div><strong>{people[c.user_id]?.display_name||'Artist'}</strong><p>{c.body}</p>{c.user_id!==user.id&&<button className="comment-report" type="button" aria-label="Report comment" onClick={()=>{setReportTarget(c.id);setReportReason('');setModal('report-comment')}}><Flag size={14}/></button>}</div></div>):<p className="sheet-help">No comments yet.</p>}</div>
     <form className="comment-compose" onSubmit={sendComment}><input value={comment} onChange={e=>setComment(e.target.value)} maxLength={350} placeholder="Leave a comment..." aria-label="Comment"/><button type="submit" disabled={!comment.trim()}><Send size={19}/></button></form>
-    {mode==='trio'&&phase==='voting'&&selectedDrawing.user_id!==user.id&&<Btn icon={Heart} onClick={()=>{vote(selectedDrawing);setModal('')}}>{board.myVote===selectedDrawing.id?'Change vote':'Vote for this drawing'}</Btn>}</>}
+    {mode==='trio'&&phase==='voting'&&selectedDrawing.user_id!==user.id&&<Btn icon={Heart} onClick={()=>vote(selectedDrawing)}>{board.myVote===selectedDrawing.id?'Change vote':'Vote for this drawing'}</Btn>}</>}
    </Modal>}
   {modal==='previous'&&previous&&<Modal title={THEMES[previous.theme_index]?.name||'Previous round'} subtitle="Earlier artwork" onClose={()=>setModal('')}><div className="previous-gallery">{previous.submissions.map(s=><div key={s.id} className="previous-art">{s.url?<img src={s.url} alt="Earlier drawing"/>:<ImageIcon size={24}/>}</div>)}</div><p className="sheet-help">Only contributing artists can approve sharing.</p>{mode!=='solo'&&contributed(previous,user.id)&&<button className="consent-toggle" onClick={()=>setSharing(previous)}>{previous.consents?.some(c=>c.user_id===user.id&&c.approved)?'Withdraw permission':'Approve sharing'}</button>}<Btn secondary icon={Share2} onClick={()=>exportArt(previous)} disabled={busy||(mode!=='solo'&&!canShareRound(previous))}>Save or share</Btn></Modal>}
  {modal==='name'&&<Modal title="What should we call you?" subtitle="Your friends will see this name." onClose={()=>{sessionStorage.setItem('doodl-name-prompt-'+user.id,'1');setModal('')}}><label className="field-label" htmlFor="first-name">YOUR NAME</label><input id="first-name" className="field-input" maxLength={32} value={displayName} onChange={e=>setDisplayName(e.target.value)} placeholder="Your name"/><Btn icon={ArrowRight} disabled={busy||displayName.trim().length<2} onClick={saveProfile}>Continue</Btn><button className="sheet-link" onClick={()=>{sessionStorage.setItem('doodl-name-prompt-'+user.id,'1');setModal('')}}>Not now</button></Modal>}
- {(['report','report-art','report-message','report-comment'].includes(modal))&&<Modal title="Report content" subtitle="Help us keep circles safer." onClose={()=>setModal('')}><label className="field-label" htmlFor="reason">WHAT HAPPENED?</label><textarea id="reason" className="field-input" rows={4} maxLength={500} value={reportReason} onChange={e=>setReportReason(e.target.value)} placeholder="Tell us what is wrong…"/><Btn icon={Flag} onClick={submitReport}>Submit report</Btn>{modal==='report'&&<button className="sheet-link" onClick={()=>block(reportTarget)}><Ban size={17}/> Block this person</button>}</Modal>}
+ {(['report','report-art','report-message','report-comment'].includes(modal))&&<Modal title="Report content" subtitle="Tell us what happened." onClose={()=>setModal('')}><label className="field-label" htmlFor="reason">WHAT HAPPENED?</label><textarea id="reason" className="field-input" rows={4} maxLength={500} value={reportReason} onChange={e=>setReportReason(e.target.value)} placeholder="Tell us what is wrong…"/><Btn icon={Flag} onClick={submitReport}>Submit report</Btn>{modal==='report'&&<button className="sheet-link" onClick={()=>block(reportTarget)}><Ban size={17}/> Block this person</button>}</Modal>}
   {toast&&<div className="global-notice" role="status">{toast}</div>}
  </div>;
 }
