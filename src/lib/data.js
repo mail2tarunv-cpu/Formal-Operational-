@@ -56,6 +56,20 @@ export async function listDrawings(roundId) {
   const rows=check(await client().from('submissions').select('*').eq('round_id',roundId).order('submitted_at'));
   return Promise.all(rows.map(async row=>({...row,url:await signedArtUrl(row.storage_path).catch(()=> '')})));
 }
+export async function listRoundHistory(circleId,currentDay,offset=0) {
+ const rows=check(await client().from('rounds').select('id,day,theme_index,circle_id,quick_started_at').eq('circle_id',circleId).lt('day',currentDay).order('day',{ascending:false}).range(offset,offset+23));
+ return rows;
+}
+export async function getRoundDetails(roundId) {
+ const round=check(await client().from('rounds').select('*').eq('id',roundId).single());
+ const phase=check(await client().rpc('round_phase',{p_round_id:roundId}));
+ if(phase!=='revealed')throw new Error('This round has not been revealed yet.');
+ const [submissions,consents]=await Promise.all([listDrawings(roundId),client().from('share_consents').select('user_id,approved').eq('round_id',roundId)]);
+ return {...round,phase,submissions,consents:check(consents)};
+}
+export async function listRoundVotes(roundId) {
+ return check(await client().from('votes').select('submission_id').eq('round_id',roundId));
+}
 export async function getPreviousRound(circleId,currentDay) {
   const rows=check(await client().from('rounds').select('*').eq('circle_id',circleId).lt('day',currentDay).order('day',{ascending:false}).limit(1));
   if(!rows.length)return null;
